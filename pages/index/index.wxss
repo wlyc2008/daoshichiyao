@@ -298,3 +298,25 @@
   color: var(--color-text-hint);
   font-size: var(--font-sm);
 }
+
+/* 邀请码：可点按复制，浅绿底与主操作区分 */
+.invite-code {
+  margin-top: 20rpx;
+  padding: 16rpx 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: bold;
+  color: var(--color-primary);
+  letter-spacing: 2rpx;
+}
+
+/* 副入口文字链接 */
+.entry-link {
+  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+  padding: 16rpx 0;
+}

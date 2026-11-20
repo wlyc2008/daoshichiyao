@@ -5,7 +5,9 @@ const config = require('../../utils/config');
 Page({
   data: {
     code: '',
-    state: 'loading', // loading | ready | done | error
+    typedCode: '',
+    state: 'loading', // loading | input | ready | done | error
+    errorCode: '',
     errorText: '',
     submitting: false
   },
@@ -13,10 +15,21 @@ Page({
   onLoad(options) {
     const code = String((options && options.code) || '').trim().toUpperCase();
     if (!code) {
-      this.setData({
-        state: 'error',
-        errorText: '邀请链接不完整，请让家人重新发送一次'
-      });
+      // 没有邀请码时允许手动输入，便于当面或电话告诉家人
+      this.setData({ state: 'input' });
+      return;
+    }
+    this.setData({ code: code, state: 'ready' });
+  },
+
+  onCodeInput(e) {
+    this.setData({ typedCode: String(e.detail.value || '').toUpperCase() });
+  },
+
+  onSubmitCode() {
+    const code = String(this.data.typedCode || '').trim().toUpperCase();
+    if (code.length !== 6) {
+      wx.showToast({ title: '请输入 6 位邀请码', icon: 'none' });
       return;
     }
     this.setData({ code: code, state: 'ready' });
@@ -44,6 +57,7 @@ Page({
       this.setData({
         state: 'error',
         submitting: false,
+        errorCode: (err && err.code) || '',
         errorText: (err && err.message) || '绑定失败，请让家人重新发送'
       });
     });
@@ -51,5 +65,16 @@ Page({
 
   goHome() {
     wx.reLaunch({ url: '/pages/index/index' });
+  },
+
+  /** 邀请码输错或过期后，回到输入态重新填 */
+  onReinput() {
+    this.setData({
+      state: 'input',
+      code: '',
+      typedCode: '',
+      errorCode: '',
+      errorText: ''
+    });
   }
 });

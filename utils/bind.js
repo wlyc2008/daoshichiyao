@@ -15,7 +15,11 @@ function createInvite() {
 
 function acceptInvite(code) {
   return cloud.callFunction('bindUser', { action: 'accept', code: code }).then((res) => {
-    if (!res.ok) throw new Error(res.msg || '绑定失败');
+    if (!res.ok) {
+      const err = new Error(res.msg || '绑定失败');
+      err.code = res.code || '';
+      throw err;
+    }
     return res;
   });
 }

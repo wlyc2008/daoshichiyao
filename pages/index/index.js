@@ -132,6 +132,16 @@ Page({
     this.loadInvite();
   },
 
+  /** 复制邀请码，便于当面或电话告诉父母 */
+  onCopyCode() {
+    const code = this.data.inviteCode;
+    if (!code) return;
+    wx.setClipboardData({
+      data: code,
+      success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' })
+    });
+  },
+
   /** 已绑定的长辈信息，用于告诉子女「提醒已经送达」 */
   loadBindStatus() {
     bind.fetchStatus().then((res) => {
@@ -141,6 +151,11 @@ Page({
         this.setData({ bound: true, boundText: partner.nickname || '长辈' });
       }
     }).catch(() => {});
+  },
+
+  /** 进入邀请码输入页，长辈可直接凭 6 位码完成绑定 */
+  goBind() {
+    wx.navigateTo({ url: '/pages/bind/bind' });
   },
 
   onShareAppMessage() {

@@ -21,3 +21,54 @@
   color: var(--color-text);
   line-height: 1.9;
 }
+
+/* 醒目警示：自己打开自己的邀请时使用 */
+.alert-card {
+  border: 4rpx solid var(--color-danger);
+  background: var(--color-danger-light);
+}
+
+.alert-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.alert-icon {
+  flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  background: var(--color-danger);
+  color: #FFFFFF;
+  text-align: center;
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.alert-title {
+  font-size: var(--font-h2);
+  font-weight: bold;
+  color: var(--color-danger);
+}
+
+.alert-text {
+  font-size: var(--font-body);
+  color: var(--color-text);
+  line-height: 1.8;
+  margin-top: 8rpx;
+}
+
+/* 邀请码输入：大号字 + 大字距，方便老人核对 */
+.code-input {
+  height: 112rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-h1);
+  font-weight: bold;
+  letter-spacing: 12rpx;
+  text-align: center;
+}

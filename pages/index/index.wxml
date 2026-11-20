@@ -27,6 +27,7 @@
     </view>
 
     <view class="privacy">选择后可在首页右上角随时切换身份</view>
+    <view class="entry-link" bindtap="goBind">已有家人给的邀请码？点这里输入</view>
   </block>
 
   <!-- 长辈：等待家人发送关怀邀请 -->
@@ -47,6 +48,7 @@
       <view class="section-title">等待家人的提醒</view>
       <view class="empty-text">请让子女在小程序里点击「发送给父母」，把提醒卡片转发到您的微信。</view>
       <view class="empty-text wait-hint">收到卡片后点开即可完成绑定，之后到点会自动提醒您吃药。</view>
+      <button class="btn-secondary" bindtap="goBind">输入邀请码</button>
     </view>
 
     <view class="privacy">如您想自己记录用药，可在右上角切换为「子女」身份</view>
@@ -77,6 +79,7 @@
       <button wx:if="{{inviteCode}}" class="btn-primary" open-type="share">发送给父母</button>
       <view wx:elif="{{inviteError}}" class="wait-hint danger-text" bindtap="onRetryInvite">{{inviteError}}，点此重试</view>
       <view wx:else class="wait-hint">正在准备邀请…</view>
+      <view wx:if="{{inviteCode}}" class="invite-code" bindtap="onCopyCode">邀请码 {{inviteCode}} · 点此复制</view>
     </view>
 
     <view wx:else class="card">

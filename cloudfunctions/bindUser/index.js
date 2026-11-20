@@ -90,17 +90,17 @@ async function createInvite(openid) {
 /** 长辈端：接受邀请，双向写入 linkedId */
 async function acceptInvite(openid, rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
-  if (!code) return { ok: false, msg: '邀请码无效' };
+  if (!code) return { ok: false, code: 'INVALID_CODE', msg: '邀请码无效' };
 
   const found = await db.collection(INVITES).where({ code: code }).get();
-  if (!found.data.length) return { ok: false, msg: '邀请不存在，请让家人重新发送' };
+  if (!found.data.length) return { ok: false, code: 'NOT_FOUND', msg: '邀请不存在，请让家人重新发送' };
 
   const invite = found.data[0];
   if (invite.caregiverOpenId === openid) {
-    return { ok: false, msg: '这是您自己的邀请，请转发给家人打开' };
+    return { ok: false, code: 'SELF_INVITE', msg: '这是您自己的邀请，请转发给家人打开' };
   }
-  if (invite.used) return { ok: false, msg: '邀请已被使用，请让家人重新发送' };
-  if (invite.expireAt < Date.now()) return { ok: false, msg: '邀请已过期，请让家人重新发送' };
+  if (invite.used) return { ok: false, code: 'USED', msg: '邀请已被使用，请让家人重新发送' };
+  if (invite.expireAt < Date.now()) return { ok: false, code: 'EXPIRED', msg: '邀请已过期，请让家人重新发送' };
 
   const caree = await findUser(openid);
   if (caree) {
