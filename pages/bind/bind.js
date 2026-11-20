@@ -14,25 +14,12 @@ Page({
 
   onLoad(options) {
     const code = String((options && options.code) || '').trim().toUpperCase();
-    this.setData({ code: code });
-    this.checkStatus(code);
-  },
-
-  /** 已绑定的长辈再次进入时，直接显示「已开启」，不再让他重复输码 */
-  checkStatus(code) {
-    const fallback = code ? 'ready' : 'input';
-    bind.fetchStatus().then((res) => {
-      const profile = res.profile;
-      const bound = !!(profile && profile.linkedId && res.partner);
-      const isCaree = !!(profile && profile.role === 'caree');
-      if (bound && (isCaree || !code)) {
-        this.setData({ state: 'done' });
-        return;
-      }
-      this.setData({ state: fallback });
-    }).catch(() => {
-      this.setData({ state: fallback });
-    });
+    if (!code) {
+      // 没有邀请码时允许手动输入，便于当面或电话告诉家人
+      this.setData({ state: 'input' });
+      return;
+    }
+    this.setData({ code: code, state: 'ready' });
   },
 
   onCodeInput(e) {
@@ -78,15 +65,6 @@ Page({
 
   goHome() {
     wx.reLaunch({ url: '/pages/index/index' });
-  },
-
-  /** 长辈不想进入小程序时，直接退出，省得找不到关闭入口 */
-  onClose() {
-    if (typeof wx.exitMiniProgram !== 'function') {
-      this.goHome();
-      return;
-    }
-    wx.exitMiniProgram({ fail: () => this.goHome() });
   },
 
   /** 邀请码输错或过期后，回到输入态重新填 */

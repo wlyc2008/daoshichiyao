@@ -62,32 +62,18 @@
 }
 
 .hero {
-  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16rpx 8rpx 32rpx;
 }
 
-/* 绑定状态固定在顶部正中，只做状态展示 */
-.hero-status {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 8rpx 20rpx;
-  border-radius: var(--radius-pill);
-  font-size: var(--font-xs);
-  color: var(--color-text-hint);
-  background: var(--color-card);
-  white-space: nowrap;
+.hero-actions {
+  display: flex;
+  align-items: center;
 }
 
-.hero-status.done {
-  color: var(--color-primary);
-  background: var(--color-primary-light);
-  font-weight: bold;
-}
-
+/* 设置入口：首页唯一的文字按钮 */
 .hero-settings {
   min-width: 140rpx;
   height: 88rpx;
@@ -247,18 +233,101 @@
   text-decoration: underline;
 }
 
-/* ========== 长辈端等待绑定 ========== */
+/* ========== 身份选择（2.0） ========== */
+.intro {
+  padding: 48rpx 8rpx 32rpx;
+}
+
+.intro-title {
+  font-size: var(--font-h1);
+  font-weight: bold;
+  letter-spacing: 2rpx;
+}
+
+.intro-sub {
+  margin-top: 16rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+.role-card {
+  padding: 28rpx 24rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-card);
+  margin-bottom: 20rpx;
+}
+
+.role-card:active {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.role-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.role-title {
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.role-text {
+  margin-top: 12rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.6;
+}
+
 .wait-hint {
   margin-top: 16rpx;
   color: var(--color-text-hint);
   font-size: var(--font-sm);
 }
 
-/* 首页底部的长辈兜底入口：弱化处理，不干扰子女主流程 */
-.entry-link.subtle {
+/* 邀请码输入：长辈首页内直接填写，省去跳转 */
+.code-input {
+  margin-top: 24rpx;
+  height: 112rpx;
+  padding: 0 24rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-h1);
+  font-weight: bold;
+  letter-spacing: 12rpx;
+  text-align: center;
+}
+
+/* 解除绑定：次要操作，弱化样式避免误触 */
+.unbind-link {
+  margin-top: 24rpx;
+  padding: 12rpx 0;
+  text-align: right;
+  font-size: var(--font-sm);
+  color: var(--color-text-hint);
+  text-decoration: underline;
+}
+
+/* 邀请码：可点按复制，浅绿底与主操作区分 */
+.invite-code {
+  margin-top: 20rpx;
+  padding: 16rpx 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: bold;
+  color: var(--color-primary);
+  letter-spacing: 2rpx;
+}
+
+/* 副入口文字链接 */
+.entry-link {
   text-align: center;
   font-size: var(--font-sm);
   color: var(--color-primary);
   text-decoration: underline;
-  padding: 8rpx 0 16rpx;
+  padding: 16rpx 0;
 }

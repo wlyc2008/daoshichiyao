@@ -121,18 +121,27 @@ async function acceptInvite(openid, rawCode) {
   return { ok: true };
 }
 
-/** 解除绑定：双向清空 linkedId，双方都会回到未绑定状态 */
-async function unbind(openid) {
+/** 解除绑定：双方 linkedId 一起清空，避免一边停了提醒另一边还以为在生效 */
+async function unbindUser(openid) {
   const user = await findUser(openid);
   if (!user) return { ok: true };
 
-  if (user.linkedId) {
-    const partner = await findUser(user.linkedId);
+  const partnerId = user.linkedId || '';
+  await updateUser(user, { linkedId: '' });
+
+  if (partnerId) {
+    const partner = await findUser(partnerId);
     if (partner && partner.linkedId === openid) {
       await updateUser(partner, { linkedId: '' });
     }
   }
-  await updateUser(user, { linkedId: '' });
+
+  // 旧的邀请码一律作废，重新邀请时用新码
+  await db.collection(INVITES).where({
+    caregiverOpenId: openid,
+    used: false
+  }).update({ data: { used: true, usedBy: 'unbind' } });
+
   return { ok: true };
 }
 
@@ -161,6 +170,6 @@ exports.main = async (event) => {
   const action = event.action || 'status';
   if (action === 'create') return createInvite(OPENID);
   if (action === 'accept') return acceptInvite(OPENID, event.code);
-  if (action === 'unbind') return unbind(OPENID);
+  if (action === 'unbind') return unbindUser(OPENID);
   return getStatus(OPENID);
 };

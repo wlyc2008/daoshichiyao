@@ -7,6 +7,7 @@ const medSchedule = require('../../utils/medSchedule');
 const planSync = require('../../utils/planSync');
 const role = require('../../utils/role');
 const bind = require('../../utils/bind');
+const config = require('../../utils/config');
 
 const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -77,26 +78,32 @@ Page({
     due: null,
     icsExported: true,
     icsOutdated: false,
-    bound: false
+    inviteCode: '',
+    inviteError: '',
+    bound: false,
+    boundText: '',
+    typedCode: '',
+    binding: false,
+    bindError: ''
   },
 
   onShow() {
     this.loadRole();
   },
 
-  /**
-   * 身份不再由用户选择，而是由入口隐式决定：
-   * 直接打开小程序 = 管理者（子女）；点邀请完成绑定后 = 被照护者（长辈）
-   */
+  /** 读取本地身份；未选择时停留在身份选择页 */
   loadRole() {
-    const current = role.getRole() || 'caregiver';
-    this.setData({ userRole: current, today: todayText() });
+    const current = role.getRole();
+    this.setData({
+      userRole: current,
+      today: todayText()
+    });
     if (current === 'caregiver') {
       this.initApp();
     } else {
       this.stopTimer();
+      this.loadBindStatus();
     }
-    this.syncBindState();
   },
 
   initApp() {
@@ -105,30 +112,166 @@ Page({
     this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
+    this.loadInvite();
+    this.loadBindStatus();
   },
 
-  /** 用云端绑定状态校正本地：清缓存或换机后仍能回到正确的身份 */
-  syncBindState() {
+  /** 预先生成关怀邀请，保证「发送给父母」能一步分享出去 */
+  loadInvite() {
+    if (this.data.inviteCode || this.inviteLoading) return;
+    this.inviteLoading = true;
+    bind.createInvite().then((res) => {
+      this.setData({ inviteCode: res.code, inviteError: '' });
+    }).catch(() => {
+      this.setData({ inviteError: '暂时无法生成邀请，请检查网络后重试' });
+    }).then(() => {
+      this.inviteLoading = false;
+    });
+  },
+
+  onRetryInvite() {
+    this.setData({ inviteError: '' });
+    this.loadInvite();
+  },
+
+  /** 复制邀请码，便于当面或电话告诉父母 */
+  onCopyCode() {
+    const code = this.data.inviteCode;
+    if (!code) return;
+    wx.setClipboardData({
+      data: code,
+      success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' })
+    });
+  },
+
+  /** 已绑定的长辈信息，用于告诉子女「提醒已经送达」 */
+  loadBindStatus() {
     bind.fetchStatus().then((res) => {
       const profile = res.profile;
       const partner = res.partner;
-      if (!profile) return;
-
-      if (profile.role === 'caree' && this.data.userRole !== 'caree') {
-        role.cacheRole('caree');
-        this.setData({ userRole: 'caree' });
-        this.stopTimer();
-      }
-
-      if (profile.linkedId && partner) {
-        this.setData({ bound: true });
+      if (profile && profile.linkedId && partner) {
+        this.setData({ bound: true, boundText: partner.nickname || '长辈' });
       }
     }).catch(() => {});
   },
 
-  /** 长辈端：凭邀请码完成绑定 */
+  /** 长辈确认开启提醒后直接退出小程序，避免在首页误触其他入口 */
+  onExit() {
+    wx.exitMiniProgram({
+      fail: () => {
+        wx.showToast({ title: '请点右上角关闭', icon: 'none' });
+      }
+    });
+  },
+
+  /** 长辈端退出：停止接收家人设置的提醒，双方绑定一起解除 */
+  onCareeUnbind() {
+    wx.showModal({
+      title: '不再接收提醒',
+      content: '停止后家人设置的提醒不会再发给您，家人也会看到已解除。确定要停止吗？',
+      confirmText: '停止',
+      confirmColor: '#C62828',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '正在处理', mask: true });
+        bind.unbind().then(() => {
+          wx.hideLoading();
+          this.setData({
+            bound: false,
+            boundText: '',
+            inviteCode: '',
+            typedCode: '',
+            bindError: ''
+          });
+          wx.showToast({ title: '已停止接收提醒', icon: 'none' });
+        }).catch(() => {
+          wx.hideLoading();
+          wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
+        });
+      }
+    });
+  },
+
+  /** 解除与长辈的绑定，双方同时失效，之后可重新邀请 */
+  onUnbind() {
+    wx.showModal({
+      title: '解除绑定',
+      content: '解除后长辈将不再收到您设置的提醒，确定要解除吗？',
+      confirmText: '解除',
+      confirmColor: '#C62828',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '正在解除', mask: true });
+        bind.unbind().then(() => {
+          wx.hideLoading();
+          this.setData({ bound: false, boundText: '', inviteCode: '', inviteError: '' });
+          this.loadInvite();
+          wx.showToast({ title: '已解除绑定', icon: 'none' });
+        }).catch(() => {
+          wx.hideLoading();
+          wx.showToast({ title: '解除失败，请稍后重试', icon: 'none' });
+        });
+      }
+    });
+  },
+
+  /** 身份选择页的邀请码入口：切到长辈身份，直接在本页输入，不再跳转 */
   goBind() {
-    wx.navigateTo({ url: '/pages/bind/bind' });
+    role.setRole('caree');
+    this.setData({ userRole: 'caree', bindError: '' });
+    this.loadBindStatus();
+  },
+
+  onCodeInput(e) {
+    this.setData({
+      typedCode: String(e.detail.value || '').toUpperCase(),
+      bindError: ''
+    });
+  },
+
+  /** 长辈端一次点击完成「订阅授权 + 绑定」 */
+  onConfirmBind() {
+    if (this.data.binding) return;
+    const code = String(this.data.typedCode || '').trim().toUpperCase();
+    if (code.length !== 6) {
+      this.setData({ bindError: '请输入 6 位邀请码' });
+      return;
+    }
+    this.setData({ binding: true, bindError: '' });
+    wx.requestSubscribeMessage({
+      tmplIds: [config.TEMPLATE_ID],
+      // 拒绝授权也允许绑定，只是收不到微信推送
+      complete: () => this.doBind(code)
+    });
+  },
+
+  doBind(code) {
+    bind.acceptInvite(code).then(() => {
+      role.setRole('caree');
+      this.setData({ binding: false, bound: true, typedCode: '', inviteCode: '' });
+      wx.showToast({ title: '已开启家人的提醒', icon: 'success' });
+    }).catch((err) => {
+      this.setData({
+        binding: false,
+        bindError: (err && err.message) || '绑定失败，请核对邀请码'
+      });
+    });
+  },
+
+  onShareAppMessage() {
+    const code = this.data.inviteCode;
+    return {
+      title: '家人给您设置好吃药提醒了，点开就能用',
+      path: code ? '/pages/bind/bind?code=' + code : '/pages/bind/bind'
+    };
+  },
+
+  onChooseRole(e) {
+    const next = e.currentTarget.dataset.role;
+    if (!role.roleText(next)) return;
+    role.setRole(next);
+    this.setData({ userRole: next });
+    if (next === 'caregiver') this.initApp();
   },
 
   onHide() {

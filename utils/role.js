@@ -21,16 +21,10 @@ function getRole() {
   }
 }
 
-/** 只写本地，用于云端返回的身份校正，避免反向再登记一次 */
-function cacheRole(role) {
-  if (!ROLE_TEXT[role]) return;
-  wx.setStorageSync(KEYS.USER_ROLE, role);
-}
-
 /** 写入本地并异步登记到云端，云端失败不影响本地使用 */
 function setRole(role) {
   if (!ROLE_TEXT[role]) return;
-  cacheRole(role);
+  wx.setStorageSync(KEYS.USER_ROLE, role);
   if (cloud.isEnabled()) {
     cloud.registerProfile(role).catch(() => {});
   }
@@ -51,7 +45,6 @@ function roleText(role) {
 module.exports = {
   getRole,
   setRole,
-  cacheRole,
   clearRole,
   roleText
 };
