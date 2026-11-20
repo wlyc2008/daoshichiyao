@@ -53,6 +53,20 @@
     </view>
   </block>
 
+  <block wx:elif="{{state === 'self'}}">
+    <view class="intro">
+      <view class="intro-title">请让家人转发给您</view>
+      <view class="intro-sub">这张卡片是您自己的微信生成的，用自己的微信打开无法绑定。</view>
+    </view>
+    <view class="card">
+      <view class="benefit">正确做法：</view>
+      <view class="benefit">1. 打开「设置」，点「发送给父母」</view>
+      <view class="benefit">2. 选择父母的微信发送</view>
+      <view class="benefit">3. 让父母在聊天里点开卡片</view>
+      <button class="btn-primary" bindtap="goHome">返回</button>
+    </view>
+  </block>
+
   <block wx:else>
     <!-- 自己打开自己的邀请：给出最醒目的指引 -->
     <view wx:if="{{errorCode === 'SELF_INVITE'}}" class="card alert-card">
@@ -70,8 +84,10 @@
     </view>
 
     <view class="card">
-      <button wx:if="{{errorCode !== 'SELF_INVITE'}}" class="btn-primary" bindtap="onReinput">重新输入邀请码</button>
-      <button class="btn-secondary" bindtap="goHome">返回首页</button>
+      <block wx:if="{{state !== 'loading'}}">
+        <button wx:if="{{errorCode !== 'SELF_INVITE'}}" class="btn-primary" bindtap="onReinput">重新输入邀请码</button>
+        <button class="btn-secondary" bindtap="goHome">返回首页</button>
+      </block>
     </view>
   </block>
 </view>

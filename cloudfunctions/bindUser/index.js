@@ -181,6 +181,26 @@ async function resumeNotify(openid, rawNotifyState) {
   return { ok: true };
 }
 
+/** 打开卡片时先校验，避免自己打开自己的邀请还要走到「确认」才知道 */
+async function peekInvite(openid, rawCode) {
+  const code = String(rawCode || '').trim().toUpperCase();
+  if (!code) return { ok: false, code: 'INVALID_CODE', msg: '邀请码无效' };
+
+  const found = await db.collection(INVITES).where({ code: code }).get();
+  if (!found.data.length) return { ok: false, code: 'NOT_FOUND', msg: '邀请不存在，请让家人重新发送' };
+
+  const invite = found.data[0];
+  if (invite.caregiverOpenId === openid) {
+    return { ok: false, code: 'SELF_INVITE', msg: '这是您自己的邀请，请转发给家人打开' };
+  }
+  if (invite.used) {
+    return { ok: false, code: 'USED', msg: invite.usedBy === 'unbind' ? '邀请已失效，请让家人重新发送' : '邀请已被使用，请让家人重新发送' };
+  }
+  if (invite.expireAt < Date.now()) return { ok: false, code: 'EXPIRED', msg: '邀请已过期，请让家人重新发送' };
+
+  return { ok: true };
+}
+
 /** 解除绑定：双方 linkedId 一起清空，避免一边停了提醒另一边还以为在生效 */
 async function unbindUser(openid) {
   const user = await findUser(openid);
@@ -235,6 +255,7 @@ exports.main = async (event) => {
 
   const action = event.action || 'status';
   if (action === 'create') return createInvite(OPENID);
+  if (action === 'peek') return peekInvite(OPENID, event.code);
   if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState);
   if (action === 'pause') return pauseNotify(OPENID);
   if (action === 'resume') return resumeNotify(OPENID, event.notifyState);

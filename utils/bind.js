@@ -13,6 +13,18 @@ function createInvite() {
   });
 }
 
+/** 打开卡片时先校验邀请是否可用，自己打开自己的邀请可直接拦下 */
+function peek(code) {
+  return cloud.callFunction('bindUser', { action: 'peek', code: code }).then((res) => {
+    if (!res.ok) {
+      const err = new Error(res.msg || '邀请不可用');
+      err.code = res.code || '';
+      throw err;
+    }
+    return res;
+  });
+}
+
 function acceptInvite(code, notifyState) {
   return cloud.callFunction('bindUser', {
     action: 'accept',
@@ -60,6 +72,7 @@ function fetchStatus() {
 
 module.exports = {
   createInvite,
+  peek,
   acceptInvite,
   pause,
   resume,

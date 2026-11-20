@@ -20,7 +20,43 @@ Page({
       this.setData({ state: 'input' });
       return;
     }
-    this.setData({ code: code, state: 'ready' });
+    this.setData({ code: code, state: 'loading' });
+    this.checkInvite(code);
+  },
+
+  /**
+   * 先校验再展示确认页：
+   * 子女点「查看分享页」会用自己的微信打开自己的邀请，必须提前拦下，避免反复确认的死循环
+   */
+  checkInvite(code) {
+    bind.peek(code).then(() => {
+      this.setData({ state: 'ready' });
+    }).catch((err) => {
+      const errorCode = (err && err.code) || '';
+      // 网络异常时不要卡住，交给确认环节的云端再校验一次
+      if (!errorCode) {
+        this.setData({ state: 'ready' });
+        return;
+      }
+      if (errorCode === 'SELF_INVITE') {
+        this.setData({ state: 'self' });
+        return;
+      }
+      this.setData({
+        state: 'error',
+        errorCode: errorCode,
+        errorText: (err && err.message) || '邀请不可用，请让家人重新发送'
+      });
+    });
+  },
+
+  /** 返回上一页；从分享卡片冷启动时没有上一页，则回首页 */
+  goHome() {
+    if (getCurrentPages().length > 1) {
+      wx.navigateBack();
+      return;
+    }
+    wx.reLaunch({ url: '/pages/index/index' });
   },
 
   onCodeInput(e) {
@@ -86,10 +122,6 @@ Page({
         wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
       });
     });
-  },
-
-  goHome() {
-    wx.reLaunch({ url: '/pages/index/index' });
   },
 
   /** 邀请码输错或过期后，回到输入态重新填 */
