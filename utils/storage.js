@@ -6,6 +6,7 @@
 const KEYS = require('./storageKeys');
 const fileManager = require('./fileManager');
 const medSchedule = require('./medSchedule');
+const config = require('./config');
 
 const RULES = [
   'before', 'after', 'anytime',
@@ -21,6 +22,12 @@ const INTENSITIES = [
   { value: 'strong', label: '强力', desc: '微信提醒带「重要」标记，未确认时告知家人（后续开放）' }
 ];
 const INTENSITY_VALUES = INTENSITIES.map((item) => item.value);
+
+/** 强力模式灰度期间，存量的 strong 一律按标准处理 */
+function normalizeIntensity(value) {
+  if (value === 'strong' && !config.STRONG_ENABLED) return 'standard';
+  return INTENSITY_VALUES.indexOf(value) >= 0 ? value : 'standard';
+}
 
 const DEFAULT_MEAL_TIMES = { breakfast: '08:00', lunch: '12:00', dinner: '18:00' };
 const DEFAULT_ROUTINE_TIMES = { wake: '06:30', nap: '13:00', bedtime: '21:30' };
@@ -93,7 +100,7 @@ function addMed(input) {
     dose: clampInt(source.dose, 1, 999, 1),
     times: clampInt(source.times, 1, 5, 1),
     unit: UNITS.indexOf(source.unit) >= 0 ? source.unit : '片',
-    intensity: INTENSITY_VALUES.indexOf(source.intensity) >= 0 ? source.intensity : 'standard',
+    intensity: normalizeIntensity(source.intensity),
     rule: RULES.indexOf(source.rule) >= 0 ? source.rule : 'after',
     fixedTime: source.fixedTime || '09:00',
     remainingPills: Math.max(0, toInt(source.remainingPills, 0)),
@@ -149,7 +156,7 @@ function updateMed(id, patch) {
     next.unit = changes.unit;
   }
   if (changes.intensity !== undefined && INTENSITY_VALUES.indexOf(changes.intensity) >= 0) {
-    next.intensity = changes.intensity;
+    next.intensity = normalizeIntensity(changes.intensity);
   }
   if (changes.rule !== undefined && RULES.indexOf(changes.rule) >= 0) {
     next.rule = changes.rule;
@@ -384,6 +391,7 @@ function setSettings(patch) {
 
 module.exports = {
   INTENSITIES,
+  normalizeIntensity,
   DEFAULT_MEAL_TIMES,
   DEFAULT_ROUTINE_TIMES,
   DEFAULT_SETTINGS,

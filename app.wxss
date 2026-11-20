@@ -217,6 +217,19 @@ button::after {
   color: var(--color-danger);
 }
 
+/* 待服：中性灰，避免抢走已完成/漏服的注意力 */
+.tag-idle {
+  background: var(--color-bg);
+  color: var(--color-text-hint);
+  border: 2rpx solid var(--color-border);
+}
+
+/* 补吃：与待服的橙色区分，用金黄色 */
+.tag-late {
+  background: #FFF6D9;
+  color: #A9791C;
+}
+
 /* ========== 文本 ========== */
 .hint {
   font-size: var(--font-sm);
@@ -374,6 +387,19 @@ button::after {
   line-height: 80rpx;
   padding: 0 20rpx;
   font-size: var(--font-sm);
+}
+
+/* 灰度功能：置灰不可选 */
+.choice-item.disabled {
+  color: var(--color-text-hint);
+  background: var(--color-bg);
+  border-style: dashed;
+}
+
+.choice-badge {
+  margin-left: 8rpx;
+  font-size: 20rpx;
+  color: var(--color-text-hint);
 }
 
 /* ========== 信息行（三餐时间、设置项右侧值） ========== */

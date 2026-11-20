@@ -184,6 +184,21 @@
   color: #FFFFFF;
 }
 
+/* 补吃：金黄色，与待服的橙色区分 */
+.dot-late {
+  background: #D9A42B;
+  color: #FFFFFF;
+}
+
+.late-notice {
+  margin: 12rpx 0;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #FFF6D9;
+  color: #A9791C;
+  font-size: var(--font-sm);
+}
+
 .dot-none {
   background: var(--color-placeholder);
   color: var(--color-text-hint);

@@ -10,10 +10,18 @@ const LOGS = 'med_logs';
 const USERS = 'users';
 const HEARTBEAT = 'heartbeat';
 const TEMPLATE_ID = 'CTeOMRptscUEp21jFiUKz3drmBP9YxioGNdgAKlTX-I';
+// 漏服提醒模板「服药超时提醒」：需与 utils/config.js 的 MISSED_TEMPLATE_ID 保持一致
+// 字段：thing1 药品 / time2 时间 / phrase3 状态 / thing7 温馨提示
+const MISSED_TEMPLATE_ID = 'gviur2jv-JkL1aDRbsh92U1Su1IMnK9dzti_FIxoxsE';
 
 // 体验版调试用 developer，正式发布前改为 formal
 const MINIPROGRAM_STATE = 'formal';
 const PAGE = 'pages/index/index';
+
+/** 消息打开后带上计划时刻，首页据此弹确认框 */
+function notifyPage(day, time) {
+  return PAGE + '?notify=1&date=' + day + '&time=' + time;
+}
 
 function pad(value) {
   return value < 10 ? '0' + value : String(value);
@@ -143,7 +151,7 @@ async function sendCarePlans(timeKey, timeText) {
       await cloud.openapi.subscribeMessage.send({
         touser: targetId,
         templateId: TEMPLATE_ID,
-        page: PAGE,
+        page: notifyPage(timeText.slice(0, 10), timeKey),
         miniprogramState: MINIPROGRAM_STATE,
         lang: 'zh_CN',
         data: {
@@ -176,7 +184,7 @@ async function sendCarePlans(timeKey, timeText) {
 }
 
 /**
- * Phase 5：强力模式漏服看护
+ * Phase 5：漏服看护（标准 + 强力，柔和不判定）
  * 计划时刻后 30~35 分钟仍未确认，补写 missed 日志并反向通知子女
  * 仅在 5 分钟边界执行，避免每分钟扫全表
  */
@@ -190,7 +198,8 @@ async function checkMissedDoses(now) {
   let found;
   try {
     found = await db.collection(MED_PLANS)
-      .where({ intensity: 'strong', status: 'active' })
+      // 标准与强力都做漏服判定，柔和只发到点提醒
+      .where({ intensity: _.in(['standard', 'strong']), status: 'active' })
       .limit(100)
       .get();
   } catch (err) {
@@ -268,10 +277,13 @@ async function checkMissedDoses(now) {
     });
     missed += 1;
 
-    // 同一子女同一时刻的多种药合并成一条通知
-    const key = plan.ownerId + '|' + plannedTime;
+    // 同一长辈同一时刻的多种药合并成一条漏服通知
+    const key = targetId + '|' + plannedTime;
     groups[key] = groups[key] || {
+      targetId: targetId,
       ownerId: plan.ownerId,
+      time: candidate.time,
+      dateKey: candidate.dateKey,
       plannedTime: plannedTime,
       names: []
     };
@@ -286,39 +298,44 @@ async function checkMissedDoses(now) {
   let sent = 0;
 
   async function notifyGroup(key) {
+    // 未配置漏服模板时只记录，不推送
+    if (!MISSED_TEMPLATE_ID) return;
+
     const group = groups[key];
-    const owner = await cachedUser(group.ownerId);
-    if (!owner || !owner.openid) return;
-    if ((Number(owner.quota) || 0) <= 0) return;
-    // 先占用额度，避免同一子女的多条漏服并发发送时超发
-    owner.quota = (Number(owner.quota) || 0) - 1;
+    const target = await cachedUser(group.targetId);
+    if (!target || !target.openid || target.role !== 'caree') return;
+    if (target.notifyPaused) return;
+    if ((Number(target.missedQuota) || 0) <= 0) return;
+    // 先占用额度，避免同一长辈的多条漏服并发发送时超发
+    target.missedQuota = (Number(target.missedQuota) || 0) - 1;
 
     try {
       await cloud.openapi.subscribeMessage.send({
-        touser: owner.openid,
-        templateId: TEMPLATE_ID,
-        page: PAGE,
+        touser: target.openid,
+        templateId: MISSED_TEMPLATE_ID,
+        page: notifyPage(group.dateKey, group.time),
         miniprogramState: MINIPROGRAM_STATE,
         lang: 'zh_CN',
         data: {
-          thing5: { value: truncate(group.names.join('、'), 20) },
-          time1: { value: group.plannedTime },
-          short_thing7: { value: '长辈还未确认' }
+          thing1: { value: truncate('【漏服】' + group.names.join('、'), 20) },
+          time2: { value: group.plannedTime },
+          phrase3: { value: '超时未服' },
+          thing7: { value: '超时30分钟，请尽快补服' }
         }
       });
 
-      await db.collection(USERS).doc(owner._id).update({
-        data: { quota: _.inc(-1), lastNotifyAt: Date.now() }
+      await db.collection(USERS).doc(target._id).update({
+        data: { missedQuota: _.inc(-1), lastNotifyAt: Date.now() }
       });
       sent += 1;
     } catch (err) {
-      // 43101：子女未订阅或额度已耗尽，清零避免反复无效调用
+      // 43101：长辈未订阅或额度已耗尽，清零避免反复无效调用
       if (err && String(err.errCode) === '43101') {
-        owner.quota = 0;
-        await db.collection(USERS).doc(owner._id).update({ data: { quota: 0 } });
+        target.missedQuota = 0;
+        await db.collection(USERS).doc(target._id).update({ data: { missedQuota: 0 } });
       } else {
         // 其他失败把预占的额度还回去
-        owner.quota = (Number(owner.quota) || 0) + 1;
+        target.missedQuota = (Number(target.missedQuota) || 0) + 1;
       }
     }
   }

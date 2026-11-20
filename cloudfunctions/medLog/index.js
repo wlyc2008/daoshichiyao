@@ -140,10 +140,15 @@ async function getToday(openid) {
 
   const takenMap = {};
   const missedMap = {};
+  const lateMap = {};
   logs.data.forEach((log) => {
     const key = log.planId + '|' + log.time;
-    if (log.status === 'taken') takenMap[key] = log.confirmedAt || 0;
-    else if (log.status === 'missed') missedMap[key] = true;
+    if (log.status === 'taken') {
+      takenMap[key] = log.confirmedAt || 0;
+      if (log.late) lateMap[key] = true;
+    } else if (log.status === 'missed') {
+      missedMap[key] = true;
+    }
   });
 
   const items = [];
@@ -159,6 +164,7 @@ async function getToday(openid) {
         time: time,
         intensity: plan.intensity || 'standard',
         taken: !!takenMap[key],
+        late: !!takenMap[key] && !!lateMap[key],
         missed: !takenMap[key] && !!missedMap[key],
         confirmedAt: takenMap[key] || 0
       });
@@ -211,7 +217,7 @@ async function getHistory(openid, rawDay) {
       dose: log.dose,
       unit: log.unit,
       time: log.time,
-      status: log.status,
+      status: log.late ? 'late' : log.status,
       confirmedAt: log.confirmedAt || log.detectedAt || 0
     }));
   items.sort((a, b) => (a.time < b.time ? -1 : 1));
@@ -222,12 +228,22 @@ async function getHistory(openid, rawDay) {
     day: day,
     items: items,
     total: items.length,
-    taken: items.filter((item) => item.status === 'taken').length,
+    taken: items.filter((item) => item.status === 'taken' || item.status === 'late').length,
+    late: items.filter((item) => item.status === 'late').length,
     missed: items.filter((item) => item.status === 'missed').length
   };
 }
 
-/** 长辈点「已吃药」：写 med_logs 并扣减云端库存，同一时刻重复确认直接返回已有记录 */
+/** 云端库存只减不增，最低为 0；本地库存由子女端补货时重新覆盖 */
+async function deductStock(planId, plan, now) {
+  const stock = Math.max(0, Number(plan.stock) || 0);
+  const dose = Math.max(1, Number(plan.dose) || 1);
+  await db.collection(PLANS).doc(planId).update({
+    data: { stock: Math.max(0, stock - dose), updatedAt: now }
+  });
+}
+
+/** 长辈确认吃药：按时写 taken，已判定漏服的升级为补吃，重复确认直接返回已有记录 */
 async function confirmDose(openid, event) {
   const user = await findUser(openid);
   if (!user || user.role !== 'caree' || !user.linkedId) {
@@ -255,12 +271,30 @@ async function confirmDose(openid, event) {
   const existed = await db.collection(LOGS).where({
     planId: planId,
     targetId: openid,
-    plannedTime: plannedTime,
-    status: 'taken'
+    plannedTime: plannedTime
   }).limit(1).get();
-  if (existed.data.length) return { ok: true, duplicate: true, log: existed.data[0] };
 
   const now = Date.now();
+
+  // 已经确认过（含补吃）直接返回，避免重复扣库存
+  if (existed.data.length && existed.data[0].status === 'taken') {
+    return {
+      ok: true,
+      duplicate: true,
+      late: !!existed.data[0].late,
+      log: existed.data[0]
+    };
+  }
+
+  // 已判定漏服：原地升级为补吃，不新增第二条记录
+  if (existed.data.length && existed.data[0].status === 'missed') {
+    const missed = existed.data[0];
+    const patch = { status: 'taken', late: true, lateAt: now, confirmedAt: now };
+    await db.collection(LOGS).doc(missed._id).update({ data: patch });
+    await deductStock(planId, plan, now);
+    return { ok: true, late: true, log: Object.assign({}, missed, patch) };
+  }
+
   const log = {
     planId: planId,
     medId: plan.medId,
@@ -277,13 +311,7 @@ async function confirmDose(openid, event) {
     createdAt: now
   };
   await db.collection(LOGS).add({ data: log });
-
-  // 云端库存只减不增，最低为 0；本地库存由子女端补货时重新覆盖
-  const stock = Math.max(0, Number(plan.stock) || 0);
-  const dose = Math.max(1, Number(plan.dose) || 1);
-  await db.collection(PLANS).doc(planId).update({
-    data: { stock: Math.max(0, stock - dose), updatedAt: now }
-  });
+  await deductStock(planId, plan, now);
 
   return { ok: true, log: log };
 }

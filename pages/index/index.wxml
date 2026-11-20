@@ -27,13 +27,12 @@
     </view>
 
     <view class="entry-link" bindtap="goBind">已有家人给的邀请码？点这里输入</view>
-    <view class="entry-link" bindtap="goRestore">换手机了？从云端恢复备份</view>
     <view class="entry-link" bindtap="goPrivacy">隐私说明</view>
   </block>
 
   <!-- 长辈：等待家人发送关怀邀请 -->
   <block wx:elif="{{userRole === 'caree'}}">
-    <view wx:if="{{!acked}}" class="hero">
+    <view class="hero">
       <view class="hero-date">{{today}}</view>
     </view>
 
@@ -56,17 +55,12 @@
           <button class="btn-secondary" bindtap="onEnableNotify" disabled="{{binding}}">重新开启</button>
         </view>
 
-        <view wx:if="{{!acked}}" class="empty-text">到时间微信会提醒您吃药，吃完按一下「已吃药」就好。</view>
-        <view wx:else class="empty-text">已开启，到时微信会提醒您吃药。可以点击右上角圆点关闭小程序了。</view>
-
-        <block wx:if="{{!acked}}">
-          <button class="btn-primary" bindtap="onAck">我知道了</button>
-          <view class="unbind-link" bindtap="onPause">暂停接收</view>
-        </block>
+        <view class="empty-text">到时间微信会提醒您吃药，吃完在提醒弹窗里点「已吃药」就好。</view>
+        <view class="unbind-link" bindtap="onPause">暂停接收</view>
       </block>
     </view>
 
-    <!-- 今日用药：长辈只需点「已吃药」 -->
+    <!-- 今日用药：只展示状态，确认在微信提醒弹窗里完成 -->
     <view wx:if="{{bound && !notifyPaused}}" class="card">
       <view class="section-title">今天的用药</view>
 
@@ -83,21 +77,35 @@
           <view class="care-main">
             <view class="care-head">
               <view class="care-name">{{item.medName}}</view>
-              <view wx:if="{{item.missed && !item.taken}}" class="tag tag-danger">漏服</view>
             </view>
             <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
           </view>
-          <view wx:if="{{item.taken}}" class="tag tag-done">已吃药</view>
-          <view
-            wx:else
-            class="care-action {{careConfirming === item.key ? 'disabled' : ''}}"
-            hover-class="tap-hover"
-            data-plan-id="{{item.planId}}"
-            data-time="{{item.time}}"
-            bindtap="onConfirmTaken"
-          >{{careConfirming === item.key ? '记录中' : '已吃药'}}</view>
+          <view class="tag {{item.statusClass}}">{{item.statusText}}</view>
         </view>
       </block>
+    </view>
+
+    <!-- 漏服补吃：只在当天有漏服时出现 -->
+    <view wx:if="{{bound && !notifyPaused && (missedItems.length > 0 || lateNotice)}}" class="card">
+      <view class="section-title">漏服补吃</view>
+      <view wx:if="{{lateNotice}}" class="late-notice">{{lateNotice}}</view>
+
+      <view wx:for="{{missedItems}}" wx:key="key" class="care-row">
+        <view class="care-main">
+          <view class="care-head">
+            <view class="care-name">{{item.medName}}</view>
+            <view class="tag tag-danger">漏服</view>
+          </view>
+          <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
+        </view>
+        <view
+          class="care-action {{careConfirming === item.key ? 'disabled' : ''}}"
+          hover-class="tap-hover"
+          data-plan-id="{{item.planId}}"
+          data-time="{{item.time}}"
+          bindtap="onLateTaken"
+        >{{careConfirming === item.key ? '记录中' : '已补吃'}}</view>
+      </view>
     </view>
 
     <view wx:else class="card">
@@ -190,6 +198,7 @@
 
         <view class="hours-legend">
           <view class="legend-item"><view class="legend-dot dot-done"></view>已服用</view>
+          <view class="legend-item"><view class="legend-dot dot-late"></view>补吃</view>
           <view class="legend-item"><view class="legend-dot dot-pending"></view>待服用</view>
           <view class="legend-item"><view class="legend-dot dot-missed"></view>超时未服</view>
           <view class="legend-item"><view class="legend-dot dot-none"></view>无服药</view>

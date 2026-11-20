@@ -34,7 +34,7 @@ function buildPlans() {
     medName: med.name,
     dose: med.dose,
     unit: med.unit || '片',
-    intensity: storage.INTENSITIES.some((item) => item.value === med.intensity) ? med.intensity : 'standard',
+    intensity: storage.normalizeIntensity(med.intensity),
     schedule: timesOfMed(med),
     stock: Math.max(0, parseInt(med.remainingPills, 10) || 0),
     nextVisit: visit,

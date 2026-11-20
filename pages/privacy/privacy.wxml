@@ -8,27 +8,27 @@
 
   <view class="card">
     <view class="section-title">照片如何使用</view>
-    <view class="para">药品照片与医疗单据照片只保存在本机，不会上传云端，也不会包含在云端备份中。</view>
+    <view class="para">药品照片与医疗单据照片只保存在本机，不会上传云端。</view>
     <view class="para">删除药品、删除档案或还原初始状态时，本机照片会一并删除。</view>
   </view>
 
   <view class="card">
     <view class="section-title">云端保存什么</view>
-    <view class="para">提醒计划、家人绑定关系、服药记录与备份数据保存在微信云开发。</view>
-    <view class="para">这些数据只用于按时发送提醒、让家人了解服药进度、换机恢复。</view>
+    <view class="para">提醒计划、家人绑定关系、通知授权状态与服药记录保存在微信云开发。</view>
+    <view class="para">这些数据只用于按时发送提醒、让家人了解服药进度。</view>
     <view class="para">不会用于广告推送，也不会出售或提供给无关第三方。</view>
   </view>
 
   <view class="card">
     <view class="section-title">订阅消息</view>
     <view class="para">只有在你授权后，才会发送用药提醒与漏服通知；每次授权对应一次发送额度。</view>
-    <view class="para">可随时在微信「设置 → 通知管理」中关闭。</view>
+    <view class="para">可随时在小程序右上角「···」→ 设置 → 订阅消息中关闭。</view>
   </view>
 
   <view class="card">
     <view class="section-title">数据删除</view>
     <view class="para">亲情提醒页的「解除绑定」与设置页的「还原初始状态」会清空本机数据与云端提醒计划。</view>
-    <view class="para">如需删除云端服药记录、备份与绑定关系，请通过小程序详情页的反馈入口联系开发者。</view>
+    <view class="para">如需删除云端服药记录与绑定关系，请通过小程序详情页的反馈入口联系开发者。</view>
   </view>
 
   <view class="card">

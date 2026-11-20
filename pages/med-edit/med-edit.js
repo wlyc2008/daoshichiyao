@@ -2,6 +2,7 @@ const storage = require('../../utils/storage');
 const fileManager = require('../../utils/fileManager');
 const medSchedule = require('../../utils/medSchedule');
 const planSync = require('../../utils/planSync');
+const config = require('../../utils/config');
 
 const UNIT_LIST = ['片', '支', '毫升'];
 
@@ -15,11 +16,16 @@ function decorate(options, selected) {
   }));
 }
 
-/** 提醒强度：选中项附带说明文字，直接展示在下方 hint 里 */
+/** 提醒强度：选中项附带说明文字；强力灰度期间置灰 */
 function decorateIntensity(value) {
+  const selected = storage.normalizeIntensity(value);
+  const options = storage.INTENSITIES.map((item) => Object.assign({}, item, {
+    active: item.value === selected,
+    disabled: item.value === 'strong' && !config.STRONG_ENABLED
+  }));
   return {
-    options: decorate(storage.INTENSITIES, [value]),
-    desc: (storage.INTENSITIES.filter((item) => item.value === value)[0] || {}).desc || ''
+    options: options,
+    desc: (storage.INTENSITIES.filter((item) => item.value === selected)[0] || {}).desc || ''
   };
 }
 
@@ -111,9 +117,7 @@ Page({
 
     const unitIndex = Math.max(0, UNIT_LIST.indexOf(med.unit || '片'));
     const schedule = medSchedule.fromLegacy(med, storage.getMealTimes(), storage.getRoutineTimes());
-    const intensityValue = storage.INTENSITIES.some((item) => item.value === med.intensity)
-      ? med.intensity
-      : 'standard';
+    const intensityValue = storage.normalizeIntensity(med.intensity);
     const intensity = decorateIntensity(intensityValue);
 
     this.setData({
@@ -189,6 +193,11 @@ Page({
 
   onIntensityTap(event) {
     const value = event.currentTarget.dataset.value;
+    const option = storage.INTENSITIES.filter((item) => item.value === value)[0];
+    if (option && option.value === 'strong' && !config.STRONG_ENABLED) {
+      wx.showToast({ title: '强力模式即将开放', icon: 'none' });
+      return;
+    }
     const intensity = decorateIntensity(value);
     this.setData({
       intensity: value,

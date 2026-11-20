@@ -6,7 +6,7 @@
 
 ## 1. 现状一句话
 
-V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定**、**Phase 3 计划上云 + 按 targetId 推送**、**Phase 4 服药确认**、**Phase 5 漏服看护/历史记录**、**Phase 6 完成率周报**、**Phase 7 备份换机恢复**与 **Phase 8 上线准备**，剩余为后台配置与真机验收。
+V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定**、**Phase 3 计划上云 + 按 targetId 推送**、**Phase 4 服药确认**、**Phase 5 漏服看护/历史记录**、**Phase 6 完成率周报**、**Phase 8 上线准备**，以及**提醒消息弹窗确认 + 漏服补吃**、**强力模式灰度**。云端备份已按需求移除，剩余为后台配置与真机验收。
 
 ---
 
@@ -67,24 +67,22 @@ git diff v1.0.0 v2.0
    - 长辈授权额度落在 `users.quota`：`accept` / `resume` / `renew` +1，发送成功 -1
 7. **服药确认（Phase 4）**：
    - 云函数 `medLog`：`today` 按角色返回今日用药，`confirm` 写 `med_logs` 并扣减云端库存
-   - 长辈首页「今天的用药」：点「已吃药」即记录，进度即时刷新
-   - 子女首页「长辈今天」：只读展示完成进度与逐条状态（该模块已于 2026-11-20 移除）
+   - 长辈首页「今天的用药」只展示状态：待服 / 已完成 / 漏服 / 已补吃，不再放确认按钮
+   - 子女首页「长辈今天」模块已于 2026-11-20 移除
    - 同一时刻重复确认幂等；暂停接收时长辈端不展示清单
-8. **漏服看护与历史（Phase 5）**：
-   - `sendDue` 每 5 分钟边界扫描 `intensity = strong` 的计划，计划后 30~35 分钟未确认则写 `med_logs.status = 'missed'`
-   - 同一时刻多种药合并，反向通知子女（消耗子女 `users.quota`）；关系失效或长辈暂停时不误报
-   - 设置页新增「漏服通知」：授权成功后调 `bindUser.grant` 增加一次额度
-   - 子女首页「长辈今天」曾展示库存不足 3 天 / 7 天内复诊提示（随模块移除，长辈端今日用药保留）
-   - 长辈今日卡对漏服条目显示红色「漏服」标签，仍可补点「已吃药」
+8. **漏服看护与历史（Phase 5，2026-11-21 调整）**：
+   - `sendDue` 每 5 分钟边界扫描 `intensity` 为 `standard` 或 `strong` 的计划，计划后 30~35 分钟未确认则写 `med_logs.status = 'missed'`；`gentle` 不判定
+   - 同一长辈同一时刻多种药合并，漏服通知**发给父母**，消耗 `users.missedQuota`；关系失效或暂停时不误报
+   - 漏服提醒使用独立模板「服药超时提醒」（`thing1` 药品 / `time2` 时间 / `phrase3` 状态 / `thing7` 温馨提示）
+   - 子女端首页 24 小时图：红色「超时未服」、黄色「补吃」
+   - 长辈补吃：`medLog.confirm` 把已有 `missed` 原地升级为 `taken + late`，不新增记录；历史显示「补吃」
 9. **完成率周报（Phase 6）**：
    - `medLog.stats` 统计最近 7 天应服 / 已服 / 漏服与逐日完成率
    - 新页面 `pages/care-stats`：大号完成率 + 三项汇总 + 每天条形趋势
    - 子女首页「长辈今天」底部曾有本周统计 / 查看历史记录入口（随模块移除，页面保留）
-10. **备份与换机恢复（Phase 7）**：
-   - 云函数 `backupData` + 集合 `backups`，每个用户一份覆盖式备份
-   - 设置页「备份到云端」「从云端恢复」；身份选择页也可直接恢复
-   - 备份药品、档案、本机用药记录、三餐/作息与设置；照片不包含
-   - 恢复后清空计划签名，自动重新同步云端计划
+10. **云端备份（Phase 7，已移除）**：
+   - 2026-11-21 起删除 `backupData`、`utils/backup.js`、`pages/restore`
+   - 设置页只保留「导出数据到剪贴板」；身份选择页不再提供换机恢复
 11. **上线准备（Phase 8）**：
    - 版本号更新为 `2.0.0`，`MINIPROGRAM_STATE` 两端均为 `formal`
    - 合规文案扫描：无 OCR/识别/用药建议类表述
@@ -97,12 +95,17 @@ git diff v1.0.0 v2.0
 13. **微信提醒只发给父母**：
    - 子女端「微信提醒」页取消订阅与 V1 计划写入，「开启微信提醒」改为强制提交当前计划到云端
    - 未绑定父母时引导去亲情提醒页；父母未授权时提示让父母点「重新开启」
-   - 子女首页 24 小时服药图改用长辈云端记录，过点未服标红「超时未服」，每 2 分钟同步一次
-   - 子女仍可单独授权「漏服通知」，额度与用药提醒互不影响
-14. **确认服药时续订提醒**：
-   - 长辈点「已吃药」时先申请订阅授权，再写服药记录
-   - 授权成功后调用 `bindUser` 的 `renew` 给额度 +1，保证下一条提醒能送达
-   - 拒绝授权不影响服药记录；重复确认不会重复加额度
+   - 子女首页 24 小时服药图改用长辈云端记录，过点未服标红，补吃标黄，每 2 分钟同步一次
+14. **消息弹窗确认与漏服补吃（2026-11-21）**：
+   - 正常提醒与漏服提醒的 `page` 都带 `notify=1&date=...&time=...`
+   - 父母点消息打开小程序后弹窗列出该时刻药品，点「已吃药」一次记录全部
+   - 冷启动、后台唤醒、换机后无身份都能进入长辈模式并弹窗
+   - 当天有漏服时首页出现「漏服补吃」卡片，已有消息弹窗时不强制使用
+   - 授权正常 + 漏服两个模板后，确认一次同时续订两个额度
+15. **强力模式灰度**：
+   - 柔和 / 标准 / 强力三档保留，强力选项置灰标注「即将开放」
+   - `utils/config.js` 的 `STRONG_ENABLED = false`；存量强力计划在启动时降级为标准
+   - 标准强度已参与漏服判定，补吃功能当前即可用
 
 ---
 
@@ -110,25 +113,22 @@ git diff v1.0.0 v2.0
 
 | 文件 | 职责 |
 | :-- | :-- |
-| `pages/index/index.js` | 首页：身份选择、长辈输码/三态、子女状态条与用药展示 |
+| `pages/index/index.js` | 首页：身份选择、长辈状态/消息弹窗确认/补吃卡、子女状态条与 24 小时图 |
 | `pages/bind/bind.js` | 分享卡片落地页：peek → ready / self / done / error |
 | `pages/settings/settings.js` | 设置页：亲情提醒入口、用药与提醒、健康档案、数据与云服务、关于、危险操作 |
-| `pages/family/family.js` | 亲情提醒：绑定状态、分享邀请、邀请码复制、漏服通知、解除绑定 |
-| `pages/care-history/care-history.js` | 子女端执行记录：按日期查看已吃药 / 漏服 |
+| `pages/family/family.js` | 亲情提醒：绑定状态、分享邀请、邀请码复制、解除绑定 |
+| `pages/care-history/care-history.js` | 子女端执行记录：按日期查看已吃药 / 漏服 / 补吃 |
 | `pages/care-stats/care-stats.js` | 子女端本周统计：完成率、应服/已服/漏服、每天趋势 |
-| `pages/restore/restore.js` | 换机恢复：读取云端备份、二次确认、覆盖本机并重启 |
 | `pages/privacy/privacy.js` | 隐私说明：收集范围、照片、云端数据、订阅消息与医疗声明 |
-| `utils/bind.js` | 绑定接口封装：`createInvite / peek / acceptInvite / pause / resume / renew / grant / unbind / fetchStatus` |
+| `utils/bind.js` | 绑定接口封装：`requestSubscribe / createInvite / peek / acceptInvite / pause / resume / renew / unbind / fetchStatus` |
 | `utils/role.js` | 身份读写（本地 + 云端登记） |
 | `utils/cloud.js` | 云开发封装，含通用 `callFunction` |
-| `utils/planSync.js` | 计划上云：V1 `reminder_plans` + V2 `med_plans` 双指纹同步 |
-| `utils/backup.js` | 备份与恢复封装：`collect / save / info / fetchBackup / apply / restore` |
+| `utils/planSync.js` | 计划上云：V2 `med_plans` 双指纹同步 |
 | `utils/medLog.js` | 今日用药读取、历史记录与「已吃药」确认封装 |
-| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / renew / grant / unbind`，并维护双方 `quota` |
+| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / renew / grant / unbind`，维护 `quota` 与 `missedQuota` |
 | `cloudfunctions/syncMedPlans/index.js` | 按 `ownerId + medId` upsert `med_plans`，删除本地已移除的计划 |
-| `cloudfunctions/sendDue/index.js` | 定时推送：V1 计划 + `med_plans` 按 targetId 推给长辈；强力模式漏服 Watchdog |
-| `cloudfunctions/medLog/index.js` | `today` 今日用药与库存/复诊提示、`confirm` 写 `med_logs`、`history` 历史记录、`stats` 完成率周报 |
-| `cloudfunctions/backupData/index.js` | `save / info / load` 云端备份，每个用户覆盖式一份 |
+| `cloudfunctions/sendDue/index.js` | 定时推送：`med_plans` 按 targetId 推给长辈；标准+强力漏服 Watchdog，漏服通知发父母 |
+| `cloudfunctions/medLog/index.js` | `today` 今日用药与库存/复诊提示、`confirm` 写记录或升级补吃、`history` 历史、`stats` 周报 |
 | `MASTER_PLAN.md` | 第 12 章已记录 v2.0 交互逻辑，改完逻辑记得同步 |
 
 ---
@@ -136,17 +136,16 @@ git diff v1.0.0 v2.0
 ## 6. 云端资源
 
 - 环境 ID：`cloud1-d6g89v5us18443dd8`（`utils/config.js`）
-- 订阅消息模板：`TEMPLATE_ID`（用药提醒）
+- 订阅消息模板：`TEMPLATE_ID`（用药提醒）、`MISSED_TEMPLATE_ID`（服药超时提醒）
 - 集合：
 
 | 集合 | 关键字段 |
 | :-- | :-- |
-| `users` | `openid / role / linkedId / boundAt / notifyState / notifyAt / notifyPaused / quota / careNotifyState / careNotifyAt` |
+| `users` | `openid / role / linkedId / boundAt / notifyState / missedState / notifyAt / notifyPaused / quota / missedQuota` |
 | `invites` | `code / caregiverOpenId / used / usedBy / expireAt` |
-| `reminder_plans` | V1 自提醒计划（未绑定也能用） |
+| `reminder_plans` | V1 自提醒计划（仅兼容旧客户端） |
 | `med_plans` | `ownerId / targetId / medId / medName / dose / unit / intensity / schedule / stock / nextVisit / status` |
-| `med_logs` | `planId / medId / ownerId / targetId / medName / dose / unit / time / plannedTime / dateKey / status（taken / missed）/ confirmedAt / detectedAt` |
-| `backups` | `ownerId / version / updatedAt / counts / payload`（每个用户一份，覆盖式） |
+| `med_logs` | `planId / medId / ownerId / targetId / medName / dose / unit / time / plannedTime / dateKey / status（taken / missed）/ late / lateAt / confirmedAt / detectedAt` |
 
 部署命令（已验证可用）：
 
@@ -163,33 +162,34 @@ git diff v1.0.0 v2.0
 ### 子女端
 - 首页只显示一条状态栏：`已与长辈绑定 / 尚未绑定长辈 / 长辈未开启微信通知 / 长辈已暂停接收`，点击进设置
 - 设置页顶部「亲情提醒」入口 → 亲情提醒页：未绑定显示「发送给父母」+ 邀请码复制；已绑定显示状态说明 + 解除绑定
-- 已绑定时可「开启漏服通知 / 补充一次通知额度」，额度展示在卡片内
 - 首页不再展示「长辈今天」模块，子女端只保留绑定状态栏与本地用药清单
 - 「设置日历提醒」：生成 `.ics` 后在微信里选择父母的聊天发送；页面与取消说明都按「父母手机上操作」描述
 - 「微信提醒」页只展示父母授权状态与「复制开启步骤发给父母」；子女端不再订阅，也不会收到用药提醒
-- 首页「24 小时服药」图使用长辈的云端记录，过点未服显示红色「超时未服」，父母确认后自动更新
-- 长辈点「已吃药」时同时申请下一条提醒的订阅授权，云端额度 +1；拒绝不影响服药记录
-- 设置页「数据与云服务」：备份到云端 / 从云端恢复 / 导出备份到剪贴板 / 检查云端状态
+- 首页「24 小时服药」图使用长辈的云端记录：过点未服红色、补吃黄色，父母确认后自动更新
+- 设置页「数据与云服务」：导出数据到剪贴板 / 检查云端状态（云端备份已移除）
 - 设置页「关于」：隐私说明；身份选择页也有隐私说明入口
 - 邀请码仅在未绑定时生成，首页不再预生成
 
 ### 长辈端
-- 进入方式：聊天卡片 / 首页选长辈 / 邀请码链接
-- 输码 →「确认开启提醒」一次点击完成「授权 + 绑定」
-- 已开启态：可「我知道了」（收起全部操作只留提示）、「暂停接收」
+- 进入方式：聊天卡片 / 提醒消息 / 首页选长辈 / 邀请码链接
+- 输码 →「确认开启提醒」一次点击完成「授权 + 绑定」（同时授权正常与漏服两个模板）
+- 已开启态：始终展示日期、状态说明与「暂停接收」，不再有「我知道了」
 - 暂停态：「恢复接收」（重新授权）、「解除绑定」（小字）
-- 未授权：橙色提示 +「重新开启」；`ban` 时给通知管理指引
-- 今日用药中漏服条目显示红色「漏服」标签，仍可补点「已吃药」
+- 未授权：橙色提示 +「重新开启」；`ban` 时给「订阅消息」指引
+- 今日用药列表只展示状态：待服 / 已完成 / 漏服 / 已补吃，没有确认按钮
+- 正常提醒与漏服提醒点开后都会弹窗，点「已吃药」完成记录；漏服消息确认后自动记为补吃
+- 当天有漏服时首页出现「漏服补吃」卡片，可手动补记
 
 ---
 
 ## 8. 已知限制（不要当 bug 改）
 
 1. `wx.exitMiniProgram` 仅在聊天卡片等少数入口生效，已改为引导「点右上角圆点关闭」
-2. 订阅消息一次授权一条额度，`notifyState` 只代表「最近一次授权结果」
-3. 身份不可逆，选错只能删除小程序重进
-4. 开发者工具单账号无法完成绑定闭环，需双机或「多账号调试」
-5. 开发者工具模拟器点击分享不会弹好友列表，`open-type="share"` 需真机验证
+2. 订阅消息一次授权一条额度；正常提醒与漏服提醒使用两个模板、两个额度池，确认一次同时续订
+4. 强力模式当前灰度：选项置灰，存量计划降级为标准；标准强度已参与漏服判定
+5. 身份不可逆，选错只能删除小程序重进
+6. 开发者工具单账号无法完成绑定闭环，需双机或「多账号调试」
+7. 开发者工具模拟器点击分享不会弹好友列表，`open-type="share"` 需真机验证
 
 ---
 
@@ -197,23 +197,22 @@ git diff v1.0.0 v2.0
 
 Phase 8 已完成（代码侧就绪，剩余后台配置与真机验收）：
 
-1. `sendDue` 每 5 分钟边界执行漏服 Watchdog，写 `med_logs.status = 'missed'` 并反向通知子女
-2. `bindUser.grant` + 设置页「漏服通知」为子女申请通知额度
+1. `sendDue` 每 5 分钟边界执行漏服 Watchdog（标准+强力），写 `med_logs.status = 'missed'` 并通知父母
+2. 漏服模板已创建（「服药超时提醒」）并填入 `utils/config.js` 与 `sendDue`，真机验证到达即可
 3. `medLog.today` 返回库存不足 3 天 / 7 天内复诊提示
-4. `medLog.history` + `pages/care-history` 按日期查看执行记录
+4. `medLog.history` + `pages/care-history` 按日期查看执行记录，补吃显示为「补吃」
 5. `medLog.stats` + `pages/care-stats` 最近 7 天完成率与每天趋势
-6. `backupData` + `utils/backup.js` + `pages/restore` 云端备份与换机恢复（照片不包含）
+6. 长辈首页消息弹窗确认、漏服补吃卡、24 小时图红/黄状态
 7. `pages/privacy` 隐私说明；版本号 `2.0.0`，`MINIPROGRAM_STATE` 已为 `formal`
 
 ### 建议后续（均为人工步骤）
 1. 微信后台填写《用户隐私保护指引》，声明拍照选图、剪贴板写入、云开发等接口
-2. 双机联调完整链路：绑定 → 强力药 → 到点提醒 → 超时未确认 → 子女收到漏服通知 → 查看历史与本周统计
-3. 真机验证订阅消息额度：长辈 `accept` / 子女 `grant` 是否各 +1，发送后是否 -1
-4. 换机验证备份：旧机备份 → 新机选「从云端恢复」→ 药品、档案、三餐作息与设置完整
-5. 上传体验版，iOS / Android 各一台走查字号与点击区域
-6. 发布前确认 `utils/config.js` 与 `sendDue` 的 `MINIPROGRAM_STATE` 仍为 `formal`
-7. 不要破坏 V1 的 `reminder_plans`，做增量；云函数 3 秒超时，批量发送保持分批
-8. 改完同步更新 `MASTER_PLAN.md` 第 12 章
+2. 双机联调完整链路：绑定（授权两个模板）→ 到点提醒 → 弹窗确认 → 超时未确认 → 父母收到漏服提醒 → 补吃
+3. 真机验证订阅消息额度：两个模板各 +1、发送后各 -1，确认后续订是否生效
+4. 上传体验版，iOS / Android 各一台走查字号与点击区域
+5. 发布前确认 `utils/config.js` 与 `sendDue` 的 `MINIPROGRAM_STATE` 仍为 `formal`
+6. 不要破坏 V1 的 `reminder_plans`，做增量；云函数 3 秒超时，批量发送保持分批
+7. 改完同步更新 `MASTER_PLAN.md` 第 12 章
 
 ---
 
@@ -223,9 +222,9 @@ Phase 8 已完成（代码侧就绪，剩余后台配置与真机验收）：
   - 现有脚本：`C:\Users\Administrator\AppData\Local\Temp\wxbind\run.js`、`peek.js`
   - Phase 3 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\run.js`（计划写入 + 推送/暂停/解绑/额度）、`client.js`（本地计划构建）
   - Phase 4 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase4.js`（今日用药 + 确认/幂等/库存）
-  - Phase 5 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase5.js`（漏服 Watchdog、反向通知、幂等、历史、库存/复诊提示）
+  - Phase 5/6 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase5.js`（标准+强力漏服、通知父母、补吃、幂等、历史、额度、库存/复诊）
   - Phase 6 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase6.js`（7 天应服/已服/漏服、完成率、每天趋势）
-  - Phase 7 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase7.js`（备份保存/信息/读取/覆盖/限额）
+  - 备份相关测试已随功能移除，`phase7.js` 不再保留
   - 用法：把对应 `cloudfunctions/*` 复制到该目录，`node run.js`
 - **双机联调**：子女端复制邀请码 → 长辈端首页输码 → 双方状态互看
 - **前端结构自检**：

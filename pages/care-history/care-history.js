@@ -26,12 +26,25 @@ Page({
 
   load(day) {
     medLog.fetchHistory(day).then((res) => {
-      const items = (res.items || []).map((item) => Object.assign({}, item, {
-        key: item.planId + '|' + item.time,
-        doseText: item.dose + (item.unit || '片'),
-        statusText: item.status === 'taken' ? '已吃药' : '漏服',
-        statusClass: item.status === 'taken' ? 'tag-done' : 'tag-danger'
-      }));
+      const items = (res.items || []).map((item) => {
+        const late = item.status === 'late';
+        const taken = item.status === 'taken' || late;
+        let statusText = '漏服';
+        let statusClass = 'tag-danger';
+        if (late) {
+          statusText = '补吃';
+          statusClass = 'tag-late';
+        } else if (taken) {
+          statusText = '已吃药';
+          statusClass = 'tag-done';
+        }
+        return Object.assign({}, item, {
+          key: item.planId + '|' + item.time,
+          doseText: item.dose + (item.unit || '片'),
+          statusText: statusText,
+          statusClass: statusClass
+        });
+      });
       this.setData({
         day: res.day || day,
         bound: res.bound !== false,

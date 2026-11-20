@@ -1,6 +1,5 @@
 const role = require('../../utils/role');
 const bind = require('../../utils/bind');
-const config = require('../../utils/config');
 
 Page({
   data: {
@@ -76,25 +75,13 @@ Page({
   onConfirm() {
     if (this.data.submitting) return;
     this.setData({ submitting: true });
-    this.requestNotify((state) => this.doBind(state));
+    bind.requestSubscribe().then((states) => this.doBind(states));
   },
 
-  /** 请求微信通知授权，回调里带回 accept / reject / ban / filter */
-  requestNotify(done) {
-    wx.requestSubscribeMessage({
-      tmplIds: [config.TEMPLATE_ID],
-      success: (res) => {
-        done((res && res[config.TEMPLATE_ID]) || '');
-      },
-      // 授权弹窗打不开时按未授权处理，不阻断绑定
-      fail: () => done('')
-    });
-  },
-
-  doBind(notifyState) {
-    bind.acceptInvite(this.data.code, notifyState).then(() => {
+  doBind(states) {
+    bind.acceptInvite(this.data.code, states.due, states.missed).then(() => {
       role.setRole('caree');
-      this.setData({ state: 'done', submitting: false, notifyState: notifyState || '' });
+      this.setData({ state: 'done', submitting: false, notifyState: states.due || '' });
       wx.showToast({ title: '已开启', icon: 'success' });
     }).catch((err) => {
       this.setData({
@@ -110,11 +97,11 @@ Page({
   onEnableNotify() {
     if (this.data.submitting) return;
     this.setData({ submitting: true });
-    this.requestNotify((state) => {
-      bind.resume(state).then(() => {
-        this.setData({ submitting: false, notifyState: state || '' });
+    bind.requestSubscribe().then((states) => {
+      bind.resume(states.due, states.missed).then(() => {
+        this.setData({ submitting: false, notifyState: states.due || '' });
         wx.showToast({
-          title: state === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
+          title: states.due === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
           icon: 'none'
         });
       }).catch(() => {

@@ -143,11 +143,14 @@
       <view
         wx:for="{{intensityOptions}}"
         wx:key="value"
-        class="choice-item small {{item.active ? 'active' : ''}}"
+        class="choice-item small {{item.active ? 'active' : ''}} {{item.disabled ? 'disabled' : ''}}"
         hover-class="tap-hover"
         data-value="{{item.value}}"
         bindtap="onIntensityTap"
-      >{{item.label}}</view>
+      >
+        {{item.label}}
+        <text wx:if="{{item.disabled}}" class="choice-badge">即将开放</text>
+      </view>
     </view>
     <view class="hint intensity-hint">{{intensityDesc}}</view>
   </view>

@@ -1,9 +1,0 @@
-{
-  "name": "backupData",
-  "version": "1.0.0",
-  "description": "备份与恢复药品、档案、记录与设置",
-  "main": "index.js",
-  "dependencies": {
-    "wx-server-sdk": "~2.6.3"
-  }
-}

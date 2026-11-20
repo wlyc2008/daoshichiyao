@@ -1,4 +1,3 @@
-const config = require('../../utils/config');
 const bind = require('../../utils/bind');
 
 Page({
@@ -8,11 +7,7 @@ Page({
     partnerNotifyState: '',
     partnerPaused: false,
     inviteCode: '',
-    inviteError: '',
-    isCaregiver: false,
-    careQuota: 0,
-    careNotifyState: '',
-    grantingCare: false
+    inviteError: ''
   },
 
   onShow() {
@@ -27,9 +22,6 @@ Page({
       if (!profile || !profile.linkedId || !partner) {
         this.setData({
           bound: false,
-          isCaregiver: false,
-          careQuota: 0,
-          careNotifyState: '',
           inviteCode: '',
           inviteError: ''
         });
@@ -47,10 +39,7 @@ Page({
         bound: true,
         bindStatusText: bindStatusText,
         partnerNotifyState: partnerNotifyState,
-        partnerPaused: partnerPaused,
-        isCaregiver: profile.role !== 'caree',
-        careQuota: Number(profile.quota) || 0,
-        careNotifyState: profile.careNotifyState || ''
+        partnerPaused: partnerPaused
       });
     }).catch(() => {
       // 读不到状态时按未绑定处理，至少让邀请入口可用/可重试
@@ -84,34 +73,6 @@ Page({
     wx.setClipboardData({
       data: code,
       success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' })
-    });
-  },
-
-  /** 子女端：申请「漏服通知」额度，一次授权可接收一次提醒 */
-  onGrantCareNotify() {
-    if (this.data.grantingCare) return;
-    this.setData({ grantingCare: true });
-    wx.requestSubscribeMessage({
-      tmplIds: [config.TEMPLATE_ID],
-      success: (res) => {
-        this.doGrantCare((res && res[config.TEMPLATE_ID]) || '');
-      },
-      // 低版本或弹窗打不开时按未授权处理
-      fail: () => this.doGrantCare('')
-    });
-  },
-
-  doGrantCare(state) {
-    bind.grant(state).then(() => {
-      this.setData({ grantingCare: false });
-      wx.showToast({
-        title: state === 'accept' ? '已开启漏服通知' : '未开启，请检查微信通知设置',
-        icon: 'none'
-      });
-      this.loadBindStatus();
-    }).catch(() => {
-      this.setData({ grantingCare: false });
-      wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
     });
   },
 

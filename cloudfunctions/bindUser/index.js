@@ -94,7 +94,7 @@ function normalizeNotifyState(value) {
 }
 
 /** 长辈端：接受邀请，双向写入 linkedId */
-async function acceptInvite(openid, rawCode, rawNotifyState) {
+async function acceptInvite(openid, rawCode, rawNotifyState, rawMissedNotifyState) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code) return { ok: false, code: 'INVALID_CODE', msg: '邀请码无效' };
 
@@ -116,9 +116,11 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
   if (invite.expireAt < Date.now()) return { ok: false, code: 'EXPIRED', msg: '邀请已过期，请让家人重新发送' };
 
   const notifyState = normalizeNotifyState(rawNotifyState);
+  const missedState = normalizeNotifyState(rawMissedNotifyState);
   const now = Date.now();
-  // 订阅消息一次授权只允许发送一条，用 quota 记录可用条数
+  // 订阅消息一次授权只允许发送一条，用 quota / missedQuota 分别记录正常提醒和漏服提醒
   const quota = notifyState === 'accept' ? 1 : 0;
+  const missedQuota = missedState === 'accept' ? 1 : 0;
 
   const caree = await findUser(openid);
   if (caree) {
@@ -127,9 +129,11 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
       linkedId: invite.caregiverOpenId,
       boundAt: now,
       notifyState: notifyState,
+      missedState: missedState,
       notifyAt: now,
       notifyPaused: false,
-      quota: quota
+      quota: quota,
+      missedQuota: missedQuota
     });
   } else {
     await db.collection(USERS).add({
@@ -142,9 +146,11 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
         updatedAt: now,
         boundAt: now,
         notifyState: notifyState,
+        missedState: missedState,
         notifyAt: now,
         notifyPaused: false,
-        quota: quota
+        quota: quota,
+        missedQuota: missedQuota
       }
     });
   }
@@ -172,7 +178,7 @@ async function pauseNotify(openid) {
 }
 
 /** 长辈端：恢复接收，同时记录本次授权结果 */
-async function resumeNotify(openid, rawNotifyState) {
+async function resumeNotify(openid, rawNotifyState, rawMissedNotifyState) {
   const user = await findUser(openid);
   if (!user) return { ok: false, msg: '用户不存在' };
   if (!user.linkedId) return { ok: false, msg: '尚未绑定家人，请先输入邀请码' };
@@ -180,30 +186,37 @@ async function resumeNotify(openid, rawNotifyState) {
   const patch = {
     notifyPaused: false,
     notifyState: normalizeNotifyState(rawNotifyState),
+    missedState: normalizeNotifyState(rawMissedNotifyState),
     notifyAt: Date.now()
   };
   // 本次授权成功则新增一条可发送额度；拒绝时保留原额度不动
   if (patch.notifyState === 'accept') patch.quota = _.inc(1);
+  if (patch.missedState === 'accept') patch.missedQuota = _.inc(1);
   await updateUser(user, patch);
   return { ok: true };
 }
 
 /**
  * 长辈确认服药时续订下一条提醒
- * 只补一条额度，不改变暂停状态，避免「确认一次药」就悄悄恢复接收
+ * 只补额度，不改变暂停状态，避免「确认一次药」就悄悄恢复接收
  */
-async function renewQuota(openid) {
+async function renewQuota(openid, rawNotifyState, rawMissedNotifyState) {
   const user = await findUser(openid);
   if (!user) return { ok: false, msg: '用户不存在' };
   if (user.role !== 'caree' || !user.linkedId) {
     return { ok: false, msg: '请先绑定家人的提醒' };
   }
 
-  await updateUser(user, {
-    quota: _.inc(1),
-    notifyState: 'accept',
+  const notifyState = normalizeNotifyState(rawNotifyState);
+  const missedState = normalizeNotifyState(rawMissedNotifyState);
+  const patch = {
+    notifyState: notifyState,
+    missedState: missedState,
     notifyAt: Date.now()
-  });
+  };
+  if (notifyState === 'accept') patch.quota = _.inc(1);
+  if (missedState === 'accept') patch.missedQuota = _.inc(1);
+  await updateUser(user, patch);
   return { ok: true };
 }
 
@@ -303,10 +316,10 @@ exports.main = async (event) => {
   const action = event.action || 'status';
   if (action === 'create') return createInvite(OPENID);
   if (action === 'peek') return peekInvite(OPENID, event.code);
-  if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState);
+  if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState, event.missedNotifyState);
   if (action === 'pause') return pauseNotify(OPENID);
-  if (action === 'resume') return resumeNotify(OPENID, event.notifyState);
-  if (action === 'renew') return renewQuota(OPENID);
+  if (action === 'resume') return resumeNotify(OPENID, event.notifyState, event.missedNotifyState);
+  if (action === 'renew') return renewQuota(OPENID, event.notifyState, event.missedNotifyState);
   if (action === 'grant') return grantCareNotify(OPENID, event.notifyState);
   if (action === 'unbind') return unbindUser(OPENID);
   return getStatus(OPENID);

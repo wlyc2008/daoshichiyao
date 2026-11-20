@@ -5,6 +5,39 @@
  * fetchStatus：读取自己与对方的绑定状态
  */
 const cloud = require('./cloud');
+const config = require('./config');
+
+/**
+ * 一次弹窗同时申请正常提醒与漏服提醒
+ * 未配置漏服模板时只申请正常提醒
+ */
+function requestSubscribe() {
+  return new Promise((resolve) => {
+    const states = { due: '', missed: '', errMsg: '' };
+    if (!wx.requestSubscribeMessage) {
+      resolve(states);
+      return;
+    }
+
+    const ids = [config.TEMPLATE_ID];
+    if (config.MISSED_TEMPLATE_ID) ids.push(config.MISSED_TEMPLATE_ID);
+
+    wx.requestSubscribeMessage({
+      tmplIds: ids,
+      success: (res) => {
+        states.due = res[config.TEMPLATE_ID] || '';
+        if (config.MISSED_TEMPLATE_ID) {
+          states.missed = res[config.MISSED_TEMPLATE_ID] || '';
+        }
+        resolve(states);
+      },
+      fail: (err) => {
+        states.errMsg = (err && err.errMsg) || 'requestSubscribeMessage:fail';
+        resolve(states);
+      }
+    });
+  });
+}
 
 function createInvite() {
   return cloud.callFunction('bindUser', { action: 'create' }).then((res) => {
@@ -25,11 +58,12 @@ function peek(code) {
   });
 }
 
-function acceptInvite(code, notifyState) {
+function acceptInvite(code, notifyState, missedNotifyState) {
   return cloud.callFunction('bindUser', {
     action: 'accept',
     code: code,
-    notifyState: notifyState || ''
+    notifyState: notifyState || '',
+    missedNotifyState: missedNotifyState || ''
   }).then((res) => {
     if (!res.ok) {
       const err = new Error(res.msg || '绑定失败');
@@ -49,31 +83,25 @@ function pause() {
 }
 
 /** 恢复接收：需重新授权微信通知，顺带记录本次授权结果 */
-function resume(notifyState) {
+function resume(notifyState, missedNotifyState) {
   return cloud.callFunction('bindUser', {
     action: 'resume',
-    notifyState: notifyState || ''
+    notifyState: notifyState || '',
+    missedNotifyState: missedNotifyState || ''
   }).then((res) => {
     if (!res.ok) throw new Error(res.msg || '恢复失败');
     return res;
   });
 }
 
-/** 长辈确认服药时续订一条提醒额度 */
-function renew() {
-  return cloud.callFunction('bindUser', { action: 'renew' }).then((res) => {
-    if (!res.ok) throw new Error(res.msg || '续订失败');
-    return res;
-  });
-}
-
-/** 子女端：为「漏服通知」申请一条发送额度 */
-function grant(notifyState) {
+/** 长辈确认服药时续订正常提醒与漏服提醒各一条额度 */
+function renew(notifyState, missedNotifyState) {
   return cloud.callFunction('bindUser', {
-    action: 'grant',
-    notifyState: notifyState || ''
+    action: 'renew',
+    notifyState: notifyState || '',
+    missedNotifyState: missedNotifyState || ''
   }).then((res) => {
-    if (!res.ok) throw new Error(res.msg || '开启失败');
+    if (!res.ok) throw new Error(res.msg || '续订失败');
     return res;
   });
 }
@@ -96,7 +124,7 @@ module.exports = {
   pause,
   resume,
   renew,
-  grant,
+  requestSubscribe,
   unbind,
   fetchStatus
 };

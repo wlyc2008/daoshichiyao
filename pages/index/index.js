@@ -8,7 +8,6 @@ const planSync = require('../../utils/planSync');
 const role = require('../../utils/role');
 const bind = require('../../utils/bind');
 const medLog = require('../../utils/medLog');
-const config = require('../../utils/config');
 
 const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -60,30 +59,59 @@ function monthDay(dateKey) {
   return d ? (d.getMonth() + 1) + '月' + d.getDate() + '日' : String(dateKey || '');
 }
 
+function pad(value) {
+  return value < 10 ? '0' + value : String(value);
+}
+
+/** 本机日期键，用于校验消息里的计划日期 */
+function localDayKey() {
+  const now = new Date();
+  return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+}
+
 /** 今日用药：补齐渲染字段，planId + time 作为列表键 */
 function decorateToday(res) {
   const now = new Date();
-  const nowKey = (now.getHours() < 10 ? '0' + now.getHours() : String(now.getHours()))
-    + ':' + (now.getMinutes() < 10 ? '0' + now.getMinutes() : String(now.getMinutes()));
-  const items = (res.items || []).map((item) => Object.assign({}, item, {
-    key: item.planId + '|' + item.time,
-    doseText: item.dose + (item.unit || '片'),
-    // 过点未服：用于首页 24 小时图标的红色标记
-    overdue: !item.taken && String(item.time) < nowKey
-  }));
+  const nowKey = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  const items = (res.items || []).map((item) => {
+    const taken = !!item.taken;
+    const late = taken && !!item.late;
+    let statusText = '待服';
+    let statusClass = 'tag-idle';
+    if (late) {
+      statusText = '已补吃';
+      statusClass = 'tag-late';
+    } else if (taken) {
+      statusText = '已完成';
+      statusClass = 'tag-done';
+    } else if (item.missed) {
+      statusText = '漏服';
+      statusClass = 'tag-danger';
+    }
+    return Object.assign({}, item, {
+      key: item.planId + '|' + item.time,
+      doseText: item.dose + (item.unit || '片'),
+      late: late,
+      statusText: statusText,
+      statusClass: statusClass,
+      // 过点未服：用于首页 24 小时图标的红色标记
+      overdue: !taken && String(item.time) < nowKey
+    });
+  });
   return {
     careItems: items,
     careTotal: res.total || 0,
     careDone: res.done || 0,
-    careLoaded: true
+    careLoaded: true,
+    missedItems: items.filter((item) => item.missed && !item.taken)
   };
 }
 
-/** 用长辈的云端记录重建 24 小时服药图，过点未服的小时标红 */
+/** 用长辈的云端记录重建 24 小时服药图：红色漏服、黄色补吃 */
 function buildCareHours(items) {
   const hours = [];
   for (let h = 0; h < 24; h += 1) {
-    hours.push({ hour: h, names: [], total: 0, done: 0, overdue: 0, statusClass: 'dot-none' });
+    hours.push({ hour: h, names: [], total: 0, done: 0, overdue: 0, late: 0, statusClass: 'dot-none' });
   }
 
   (items || []).forEach((item) => {
@@ -92,12 +120,14 @@ function buildCareHours(items) {
     cell.total += 1;
     if (item.taken) cell.done += 1;
     else if (item.overdue) cell.overdue += 1;
+    if (item.late) cell.late += 1;
     if (cell.names.indexOf(item.medName) === -1) cell.names.push(item.medName);
   });
 
   hours.forEach((cell) => {
     if (cell.total === 0) cell.statusClass = 'dot-none';
     else if (cell.overdue > 0) cell.statusClass = 'dot-missed';
+    else if (cell.late > 0) cell.statusClass = 'dot-late';
     else if (cell.done === cell.total) cell.statusClass = 'dot-done';
     else cell.statusClass = 'dot-pending';
   });
@@ -116,7 +146,8 @@ function emptyToday() {
     careTotal: 0,
     careDone: 0,
     careLoaded: false,
-    careConfirming: ''
+    careConfirming: '',
+    missedItems: []
   };
 }
 
@@ -143,7 +174,6 @@ Page({
     typedCode: '',
     binding: false,
     bindError: '',
-    acked: false,
     notifyState: '',
     notifyPaused: false,
     partnerNotifyState: '',
@@ -154,11 +184,39 @@ Page({
     careTotal: 0,
     careDone: 0,
     careLoaded: false,
-    careConfirming: ''
+    careConfirming: '',
+    // 消息进入：待确认的计划时刻
+    notifyDate: '',
+    notifyTime: '',
+    lateNotice: ''
+  },
+
+  onLoad(options) {
+    this.handleNotifyOptions(options);
   },
 
   onShow() {
+    // 小程序已在后台时，从消息进入的参数通过 EnterOptions 获取
+    if (typeof wx.getEnterOptionsSync === 'function') {
+      const enter = wx.getEnterOptionsSync();
+      if (enter && enter.query) this.handleNotifyOptions(enter.query);
+    }
+    this.setData({ lateNotice: '' });
     this.loadRole();
+  },
+
+  /** 记录消息带来的计划时刻，等今日数据加载完再弹确认 */
+  handleNotifyOptions(options) {
+    if (!options || String(options.notify) !== '1') return;
+    const day = String(options.date || '');
+    const time = String(options.time || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{2}:\d{2}$/.test(time)) return;
+
+    const key = day + '|' + time;
+    if (this.notifyHandledKey === key) return;
+    this.notifyHandledKey = key;
+    this.pendingNotify = { date: day, time: time };
+    this.setData({ notifyDate: day, notifyTime: time });
   },
 
   /** 读取本地身份；未选择时停留在身份选择页 */
@@ -170,10 +228,28 @@ Page({
     });
     if (current === 'caregiver') {
       this.initApp();
-    } else {
-      this.stopTimer();
-      this.loadBindStatus();
+      return;
     }
+
+    // 从提醒消息进入但本机没有身份时，先查云端，是长辈就直接进入长辈首页
+    if (!current && this.pendingNotify) {
+      bind.fetchStatus().then((res) => {
+        const profile = res.profile;
+        if (profile && profile.role === 'caree' && profile.linkedId) {
+          role.setRole('caree');
+          this.setData({ userRole: 'caree' });
+        }
+        this.stopTimer();
+        this.loadBindStatus();
+      }).catch(() => {
+        this.stopTimer();
+        this.loadBindStatus();
+      });
+      return;
+    }
+
+    this.stopTimer();
+    this.loadBindStatus();
   },
 
   initApp() {
@@ -235,6 +311,7 @@ Page({
       const patch = decorateToday(res);
       this.setData(patch);
       this.applyCareChart(patch);
+      this.maybeShowNotifyModal(patch);
     }).catch(() => {
       this.setData({ careLoaded: true });
     });
@@ -252,30 +329,87 @@ Page({
     });
   },
 
-  /** 长辈点「已吃药」：同时续订下一条提醒，再写入云端记录 */
-  onConfirmTaken(e) {
+  /** 消息进入后，等今日数据加载完弹确认框 */
+  maybeShowNotifyModal(patch) {
+    const pending = this.pendingNotify;
+    if (!pending || this.data.userRole !== 'caree') return;
+
+    if (pending.date !== localDayKey()) {
+      this.pendingNotify = null;
+      wx.showToast({ title: '这条提醒已过期', icon: 'none' });
+      return;
+    }
+
+    const items = (patch.careItems || []).filter((item) => item.time === pending.time);
+    const pendingItems = items.filter((item) => !item.taken);
+    this.pendingNotify = null;
+
+    if (!items.length) return;
+    if (!pendingItems.length) {
+      wx.showToast({ title: '这条提醒已经记录过了', icon: 'none' });
+      return;
+    }
+
+    const content = pendingItems.map((item) => item.medName + ' ' + item.doseText).join('\n')
+      + '\n计划时间 ' + pending.time;
+    const missed = pendingItems.some((item) => item.missed);
+
+    wx.showModal({
+      title: missed ? '漏服提醒' : '该吃药了',
+      content: content,
+      confirmText: '已吃药',
+      cancelText: '稍后',
+      success: (res) => {
+        if (res.confirm) this.confirmNotify(pendingItems);
+      }
+    });
+  },
+
+  /** 消息弹窗确认：先续订授权，再逐条记录，云端自动判断是否补吃 */
+  confirmNotify(items) {
+    if (this.data.careConfirming) return;
+    this.setData({ careConfirming: 'notify' });
+
+    bind.requestSubscribe().then((states) => {
+      return Promise.all(items.map((item) => medLog.confirm(item.planId, item.time).catch(() => null)))
+        .then((results) => ({ states: states, results: results }));
+    }).then((out) => {
+      const results = out.results || [];
+      const anyNew = results.some((res) => res && res.ok && !res.duplicate);
+      if (anyNew && (out.states.due === 'accept' || out.states.missed === 'accept')) {
+        bind.renew(out.states.due, out.states.missed).catch(() => {});
+      }
+      const ok = results.some((res) => res && res.ok);
+      this.setData({ careConfirming: '' });
+      this.loadToday();
+      wx.showToast({ title: ok ? '已记录' : '记录失败，请重试', icon: 'none' });
+    }).catch(() => {
+      this.setData({ careConfirming: '' });
+      wx.showToast({ title: '记录失败，请稍后重试', icon: 'none' });
+    });
+  },
+
+  /** 漏服补吃卡：确认后云端把 missed 升级为补吃 */
+  onLateTaken(e) {
     const planId = e.currentTarget.dataset.planId;
     const time = e.currentTarget.dataset.time;
     if (!planId || !time || this.data.careConfirming) return;
 
     this.setData({ careConfirming: planId + '|' + time });
 
-    // 订阅授权必须在点击行为中发起；授权结果不影响本次服药记录
-    this.requestNotify((state) => this.doConfirmTaken(planId, time, state));
-  },
-
-  doConfirmTaken(planId, time, notifyState) {
-    medLog.confirm(planId, time).then((res) => {
-      // 重复确认不重复加额度，避免同一条提醒被刷出多条
-      if (notifyState === 'accept' && !(res && res.duplicate)) {
-        bind.renew().catch(() => {});
+    bind.requestSubscribe().then((states) => {
+      return medLog.confirm(planId, time).then((res) => ({ states: states, res: res }));
+    }).then((out) => {
+      if (!(out.res && out.res.duplicate)
+        && (out.states.due === 'accept' || out.states.missed === 'accept')) {
+        bind.renew(out.states.due, out.states.missed).catch(() => {});
       }
-      this.setData({ careConfirming: '' });
-      this.loadToday();
-      wx.showToast({
-        title: notifyState === 'accept' ? '已记录' : '已记录，提醒未续订',
-        icon: 'none'
+      this.setData({
+        careConfirming: '',
+        lateNotice: '已经补吃，下次记得按时服药'
       });
+      this.loadToday();
+      wx.showToast({ title: '已经补吃', icon: 'none' });
     }).catch((err) => {
       this.setData({ careConfirming: '' });
       wx.showToast({ title: (err && err.message) || '记录失败，请稍后重试', icon: 'none' });
@@ -288,11 +422,6 @@ Page({
     if (storage.getSettings().boundTargetId === next) return;
     storage.setSettings({ boundTargetId: next });
     planSync.syncIfChanged(true);
-  },
-
-  /** 长辈点「我知道了」后收起操作区，只留一句已开启提示 */
-  onAck() {
-    this.setData({ acked: true });
   },
 
   /** 长辈端彻底解除绑定：双方关系解除，需重新邀请才能恢复 */
@@ -310,8 +439,7 @@ Page({
           this.setData(Object.assign({
             bound: false,
             typedCode: '',
-            bindError: '',
-            acked: false
+            bindError: ''
           }, emptyToday()));
           wx.showToast({ title: '已停止接收提醒', icon: 'none' });
         }).catch(() => {
@@ -325,7 +453,7 @@ Page({
   /** 身份选择页的邀请码入口：切到长辈身份，直接在本页输入，不再跳转 */
   goBind() {
     role.setRole('caree');
-    this.setData({ userRole: 'caree', bindError: '', acked: false });
+    this.setData({ userRole: 'caree', bindError: '' });
     this.loadBindStatus();
   },
 
@@ -345,33 +473,17 @@ Page({
       return;
     }
     this.setData({ binding: true, bindError: '' });
-    this.requestNotify((state) => this.doBind(code, state));
+    bind.requestSubscribe().then((states) => this.doBind(code, states));
   },
 
-  /** 请求微信通知授权，回调里带回 accept / reject / ban / filter */
-  requestNotify(done) {
-    if (typeof wx.requestSubscribeMessage !== 'function') {
-      done('');
-      return;
-    }
-    wx.requestSubscribeMessage({
-      tmplIds: [config.TEMPLATE_ID],
-      success: (res) => {
-        done((res && res[config.TEMPLATE_ID]) || '');
-      },
-      // 低版本或授权弹窗打不开时，按未授权处理，不阻断绑定
-      fail: () => done('')
-    });
-  },
-
-  doBind(code, notifyState) {
-    bind.acceptInvite(code, notifyState).then(() => {
+  doBind(code, states) {
+    const notifyState = states.due;
+    bind.acceptInvite(code, states.due, states.missed).then(() => {
       role.setRole('caree');
       this.setData({
         binding: false,
         bound: true,
         typedCode: '',
-        acked: false,
         notifyPaused: false,
         notifyState: notifyState || ''
       });
@@ -392,11 +504,11 @@ Page({
   onEnableNotify() {
     if (this.data.binding) return;
     this.setData({ binding: true });
-    this.requestNotify((state) => {
-      bind.resume(state).then(() => {
-        this.setData({ binding: false, notifyState: state || '' });
+    bind.requestSubscribe().then((states) => {
+      bind.resume(states.due, states.missed).then(() => {
+        this.setData({ binding: false, notifyState: states.due || '' });
         wx.showToast({
-          title: state === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
+          title: states.due === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
           icon: 'none'
         });
       }).catch(() => {
@@ -417,7 +529,7 @@ Page({
         wx.showLoading({ title: '正在处理', mask: true });
         bind.pause().then(() => {
           wx.hideLoading();
-          this.setData({ notifyPaused: true, acked: false });
+          this.setData({ notifyPaused: true });
           wx.showToast({ title: '已暂停接收', icon: 'none' });
         }).catch(() => {
           wx.hideLoading();
@@ -431,12 +543,12 @@ Page({
   onResume() {
     if (this.data.binding) return;
     this.setData({ binding: true });
-    this.requestNotify((state) => {
-      bind.resume(state).then(() => {
-        this.setData({ binding: false, notifyPaused: false, notifyState: state || '' });
+    bind.requestSubscribe().then((states) => {
+      bind.resume(states.due, states.missed).then(() => {
+        this.setData({ binding: false, notifyPaused: false, notifyState: states.due || '' });
         this.loadToday();
         wx.showToast({
-          title: state === 'accept' ? '已恢复接收' : '已恢复，但通知未开启',
+          title: states.due === 'accept' ? '已恢复接收' : '已恢复，但通知未开启',
           icon: 'none'
         });
       }).catch(() => {
@@ -674,11 +786,6 @@ Page({
 
   goSettings() {
     wx.navigateTo({ url: '/pages/settings/settings' });
-  },
-
-  /** 换手机后从云端恢复备份 */
-  goRestore() {
-    wx.navigateTo({ url: '/pages/restore/restore' });
   },
 
   /** 隐私说明：未选身份时也能查看 */
