@@ -30,18 +30,8 @@
 
     <view class="hero">
       <view class="hero-date">{{today}}</view>
-      <view class="hero-actions">
-        <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
-      </view>
-    </view>
-
-    <!-- 亲情提醒：只剩状态与入口，设置都在二级页 -->
-    <view class="card family-bar" hover-class="tap-hover" bindtap="goFamily">
-      <view class="family-left">
-        <view class="family-name">亲情提醒</view>
-        <view class="family-desc">{{bound ? '已和长辈绑定，到点自动提醒' : '把用药提醒发给父母'}}</view>
-      </view>
-      <view class="tag {{bound ? 'tag-done' : 'tag-pending'}}">{{bound ? '已绑定' : '未绑定'}}</view>
+      <view class="hero-status {{bound ? 'done' : ''}}">{{bound ? '已绑定长辈' : '未绑定长辈'}}</view>
+      <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
     </view>
 
     <!-- 上块：用药清单 -->
@@ -115,6 +105,7 @@
     </view>
 
     <view class="privacy">照片与用药记录只保存在本机；微信提醒会同步到云端，仅用于发送提醒</view>
+    <view class="entry-link subtle" bindtap="goBind">长辈首次使用？点这里输入家人给的邀请码</view>
   </block>
 
   <dose-confirm-mask

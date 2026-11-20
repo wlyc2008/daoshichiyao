@@ -14,8 +14,5 @@
       <view wx:else class="wait-hint">正在准备邀请…</view>
       <view wx:if="{{inviteCode}}" class="invite-code" bindtap="onCopyCode">邀请码 {{inviteCode}} · 点此复制</view>
     </view>
-
-    <view class="hint center">父母没收到卡片时，可让他在小程序里手动输入上方邀请码</view>
-    <view class="entry-link" bindtap="goBind">我收到家人的邀请码，去输入</view>
   </block>
 </view>

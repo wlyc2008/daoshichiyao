@@ -75,11 +75,7 @@ Page({
     });
   },
 
-  /** 长辈直接打开小程序时，可凭邀请码在此输入 */
-  goBind() {
-    wx.navigateTo({ url: '/pages/bind/bind' });
-  },
-
+  /** 长辈直接打开小程序时，可凭邀请码在绑定页输入 */
   onShareAppMessage() {
     const code = this.data.inviteCode;
     return {

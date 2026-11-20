@@ -62,15 +62,30 @@
 }
 
 .hero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 16rpx 8rpx 32rpx;
 }
 
-.hero-actions {
-  display: flex;
-  align-items: center;
+/* 绑定状态固定在顶部正中，只做状态展示 */
+.hero-status {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8rpx 20rpx;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  color: var(--color-text-hint);
+  background: var(--color-card);
+  white-space: nowrap;
+}
+
+.hero-status.done {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-weight: bold;
 }
 
 .hero-settings {
@@ -239,25 +254,11 @@
   font-size: var(--font-sm);
 }
 
-/* ========== 亲情提醒入口条 ========== */
-.family-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.family-left {
-  flex: 1;
-  padding-right: 24rpx;
-}
-
-.family-name {
-  font-size: var(--font-h2);
-  font-weight: bold;
-}
-
-.family-desc {
-  margin-top: 8rpx;
+/* 首页底部的长辈兜底入口：弱化处理，不干扰子女主流程 */
+.entry-link.subtle {
+  text-align: center;
   font-size: var(--font-sm);
-  color: var(--color-text-weak);
+  color: var(--color-primary);
+  text-decoration: underline;
+  padding: 8rpx 0 16rpx;
 }

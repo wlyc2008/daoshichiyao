@@ -77,8 +77,7 @@ Page({
     due: null,
     icsExported: true,
     icsOutdated: false,
-    bound: false,
-    boundText: ''
+    bound: false
   },
 
   onShow() {
@@ -122,14 +121,9 @@ Page({
       }
 
       if (profile.linkedId && partner) {
-        this.setData({ bound: true, boundText: partner.nickname || '长辈' });
+        this.setData({ bound: true });
       }
     }).catch(() => {});
-  },
-
-  /** 亲情提醒的分享、邀请码、解除绑定都收在二级页 */
-  goFamily() {
-    wx.navigateTo({ url: '/pages/family/family' });
   },
 
   /** 长辈端：凭邀请码完成绑定 */
