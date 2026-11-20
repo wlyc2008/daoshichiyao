@@ -84,7 +84,8 @@ Page({
     boundText: '',
     typedCode: '',
     binding: false,
-    bindError: ''
+    bindError: '',
+    acked: false
   },
 
   onShow() {
@@ -155,13 +156,9 @@ Page({
     }).catch(() => {});
   },
 
-  /** 长辈确认开启提醒后直接退出小程序，避免在首页误触其他入口 */
-  onExit() {
-    wx.exitMiniProgram({
-      fail: () => {
-        wx.showToast({ title: '请点右上角关闭', icon: 'none' });
-      }
-    });
+  /** 长辈点「我知道了」后收起操作区，只留一句已开启提示 */
+  onAck() {
+    this.setData({ acked: true });
   },
 
   /** 长辈端退出：停止接收家人设置的提醒，双方绑定一起解除 */
@@ -181,7 +178,8 @@ Page({
             boundText: '',
             inviteCode: '',
             typedCode: '',
-            bindError: ''
+            bindError: '',
+            acked: false
           });
           wx.showToast({ title: '已停止接收提醒', icon: 'none' });
         }).catch(() => {
@@ -218,7 +216,7 @@ Page({
   /** 身份选择页的邀请码入口：切到长辈身份，直接在本页输入，不再跳转 */
   goBind() {
     role.setRole('caree');
-    this.setData({ userRole: 'caree', bindError: '' });
+    this.setData({ userRole: 'caree', bindError: '', acked: false });
     this.loadBindStatus();
   },
 
@@ -248,7 +246,7 @@ Page({
   doBind(code) {
     bind.acceptInvite(code).then(() => {
       role.setRole('caree');
-      this.setData({ binding: false, bound: true, typedCode: '', inviteCode: '' });
+      this.setData({ binding: false, bound: true, typedCode: '', inviteCode: '', acked: false });
       wx.showToast({ title: '已开启家人的提醒', icon: 'success' });
     }).catch((err) => {
       this.setData({
