@@ -1,0 +1,25 @@
+.step {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 0;
+}
+
+.step-no {
+  flex-shrink: 0;
+  width: 44rpx;
+  height: 44rpx;
+  margin-right: 16rpx;
+  border-radius: 50%;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--font-xs);
+  line-height: 44rpx;
+  text-align: center;
+}
+
+.step-text {
+  flex: 1;
+  font-size: var(--font-body);
+  color: var(--color-text);
+  line-height: 1.6;
+}

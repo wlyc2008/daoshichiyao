@@ -1,0 +1,15 @@
+<view class="page">
+  <view wx:if="{{!hasLogs}}" class="card empty">暂无用药记录</view>
+
+  <view class="card log-row" wx:for="{{logs}}" wx:key="logId">
+    <view class="log-main">
+      <view class="log-name">{{item.name}}</view>
+      <view class="log-time">{{item.plannedTime}}</view>
+      <view wx:if="{{item.confirmedTime}}" class="log-time">确认于 {{item.confirmedTime}}</view>
+    </view>
+    <view class="log-side">
+      <view class="tag {{item.statusClass}}">{{item.statusText}}</view>
+      <view wx:if="{{item.canUndo}}" class="undo" hover-class="tap-hover" data-id="{{item.logId}}" bindtap="undo">撤销</view>
+    </view>
+  </view>
+</view>

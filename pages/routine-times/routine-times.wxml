@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">起居时间</view>
+    <view class="hint">「早起床 / 午休前 / 晚睡前」类药品，会按这里的时间提醒</view>
+
+    <view class="info-row">
+      <view class="info-label">早起床</view>
+      <picker mode="time" value="{{wake}}" data-key="wake" bindchange="onTimeChange">
+        <view class="info-value">{{wake}}</view>
+      </picker>
+    </view>
+
+    <view class="info-row">
+      <view class="info-label">午休前</view>
+      <picker mode="time" value="{{nap}}" data-key="nap" bindchange="onTimeChange">
+        <view class="info-value">{{nap}}</view>
+      </picker>
+    </view>
+
+    <view class="info-row">
+      <view class="info-label">晚睡前</view>
+      <picker mode="time" value="{{bedtime}}" data-key="bedtime" bindchange="onTimeChange">
+        <view class="info-value">{{bedtime}}</view>
+      </picker>
+    </view>
+  </view>
+
+  <button class="btn-primary" bindtap="save">保存</button>
+</view>

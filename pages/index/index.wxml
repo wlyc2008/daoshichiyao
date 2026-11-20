@@ -1,0 +1,97 @@
+<view class="page">
+  <!-- 顶部重要提示：复诊倒计时 / 库存不足，滚动字幕 -->
+  <view wx:if="{{alertText}}" class="alert-bar">
+    <view class="alert-tag">重要提示</view>
+    <view class="alert-viewport">
+      <view class="alert-track" style="animation-duration: {{alertDuration}}s">{{alertText}}</view>
+    </view>
+  </view>
+
+  <view class="hero">
+    <view class="hero-date">{{today}}</view>
+    <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
+  </view>
+
+  <!-- 上块：用药清单 -->
+  <view class="card">
+    <view class="section-title">用药清单</view>
+
+    <view wx:if="{{medsList.length === 0}}" class="empty-text">还没有添加药品，请到「设置」→「药品管理」中添加</view>
+
+    <view
+      wx:for="{{medsList}}"
+      wx:key="id"
+      class="med-item {{item.isActive === false ? 'inactive' : ''}}"
+    >
+      <view class="med-head">
+        <view class="med-name">{{item.name}}</view>
+        <view class="tag {{item.isActive === false ? 'tag-danger' : 'tag-done'}}">{{item.statusText}}</view>
+      </view>
+      <view class="med-meta">{{item.ruleText}} · 一日{{item.times}}次 · 每次 {{item.dose}}{{item.unit}}</view>
+      <view class="med-meta {{item.needRefill ? 'danger-text' : ''}}">库存 {{item.remainingPills}} {{item.unit}}，可用 {{item.daysText}}</view>
+    </view>
+  </view>
+
+  <!-- 中块：24小时服药 -->
+  <view class="card">
+    <view class="section-title">24小时服药</view>
+
+    <view wx:if="{{todayTotal > 0}}" class="summary">
+      <view class="summary-main">今天 {{todayDone}}/{{todayTotal}} 次</view>
+      <view class="summary-sub {{allDone ? 'done' : ''}}">{{allDone ? '今天的药都吃完了' : '还需 ' + todayRemaining + ' 次'}}</view>
+    </view>
+
+    <view wx:if="{{todayTotal === 0}}" class="empty-text">添加药品后，这里会显示今天的服药安排</view>
+
+    <block wx:else>
+      <view class="hours-grid">
+        <view wx:for="{{hours}}" wx:key="hour" class="hour-cell">
+          <view class="hour-dot {{item.statusClass}}">{{item.hour}}</view>
+          <view class="hour-meds">
+            <view wx:for="{{item.names}}" wx:for-item="medName" wx:key="*this" class="hour-med">{{medName}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="hours-legend">
+        <view class="legend-item"><view class="legend-dot dot-done"></view>已服用</view>
+        <view class="legend-item"><view class="legend-dot dot-pending"></view>待服用</view>
+        <view class="legend-item"><view class="legend-dot dot-none"></view>无服药</view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 下块：临期服药提醒 -->
+  <view class="card">
+    <view class="section-title">临期服药提醒</view>
+
+    <view wx:if="{{nextDose.length === 0}}" class="empty-text">暂无后续服药安排</view>
+
+    <block wx:else>
+      <view class="next-time">{{nextDoseTime}}</view>
+      <view class="next-hint">{{nextDoseHint}}</view>
+      <view wx:for="{{nextDose}}" wx:key="medId" class="next-row">
+        <view class="next-name">{{item.name}}</view>
+        <view class="next-dose">{{item.doseText}}</view>
+      </view>
+    </block>
+  </view>
+
+  <view wx:if="{{hasMeds && (!icsExported || icsOutdated)}}" class="card banner">
+    <view class="banner-text">{{icsOutdated ? '用药时间已变更，日历里的提醒还是旧时间' : '还没同步到手机日历，关掉微信后可能收不到提醒'}}</view>
+    <view class="link" hover-class="tap-hover" bindtap="goSettings">{{icsOutdated ? '重新设置' : '去设置'}}</view>
+  </view>
+
+  <view class="privacy">照片与用药记录只保存在本机；微信提醒会同步到云端，仅用于发送提醒</view>
+
+  <dose-confirm-mask
+    id="doseMask"
+    visible="{{due ? true : false}}"
+    name="{{due.name}}"
+    dose="{{due.dose}}"
+    unit="{{due.unit}}"
+    timeText="{{due.timeText}}"
+    bind:confirm="onConfirmDose"
+    bind:snooze="onSnoozeDose"
+  />
+</view>

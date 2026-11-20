@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">今天的提醒时刻</view>
+    <view wx:if="{{!hasMeds}}" class="empty">还没有药品，请先添加</view>
+    <view wx:for="{{items}}" wx:key="text" class="plan-row">{{item.text}}</view>
+    <view class="foot-links">
+      <view class="link" hover-class="tap-hover" bindtap="goMealTimes">调整三餐时间</view>
+      <view class="link" hover-class="tap-hover" bindtap="goRoutineTimes">调整起居时间</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">日历提醒</view>
+    <view class="hint">到点响铃由手机系统日历负责，关掉微信也能提醒。</view>
+
+    <view class="steps">
+      <view class="step">1. 点击下方按钮，把日历文件发给自己</view>
+      <view class="step">2. 在微信里点开文件，选择「用其他应用打开」→ 日历</view>
+      <view class="step">3. 建议导入到名为「到时吃药」的专用日历</view>
+      <view class="step">4. 以后改时间或取消，删除该日历即可一次清空</view>
+    </view>
+
+    <view wx:if="{{exportedText}}" class="notice {{exportedStale ? 'notice-warn' : ''}}">{{exportedText}}</view>
+
+    <button class="btn-primary" bindtap="exportCalendar">发送到手机日历</button>
+
+    <view class="cancel-link" hover-class="tap-hover" bindtap="goCancel">如何取消日历提醒</view>
+  </view>
+</view>

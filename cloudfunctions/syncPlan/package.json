@@ -1,0 +1,9 @@
+{
+  "name": "syncPlan",
+  "version": "1.0.0",
+  "description": "同步用户提醒计划与订阅授权次数",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

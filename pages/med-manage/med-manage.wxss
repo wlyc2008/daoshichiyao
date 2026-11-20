@@ -1,0 +1,4 @@
+/* 药品卡片、操作栏已上收到 app.wxss，这里只保留列表页专属间距 */
+.med-count {
+  margin: 24rpx 8rpx 0;
+}

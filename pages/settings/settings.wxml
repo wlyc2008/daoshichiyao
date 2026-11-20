@@ -1,0 +1,28 @@
+<view class="page">
+  <view class="group-title">用药与提醒</view>
+  <view class="card">
+    <view class="entry" hover-class="tap-hover" data-url="/pages/med-manage/med-manage" bindtap="goPage">药品管理</view>
+    <view class="entry" hover-class="tap-hover" data-url="/pages/plan-preview/plan-preview" bindtap="goPage">微信提醒</view>
+    <view class="entry" hover-class="tap-hover" data-url="/pages/calendar-alert/calendar-alert" bindtap="goPage">设置日历提醒</view>
+    <view class="entry" hover-class="tap-hover" bindtap="cancelCalendar">取消日历提醒</view>
+  </view>
+
+  <view class="group-title">健康档案</view>
+  <view class="card">
+    <view class="entry" hover-class="tap-hover" data-url="/pages/doc-archive/doc-archive" bindtap="goPage">医疗档案</view>
+    <view class="entry" hover-class="tap-hover" data-url="/pages/logs/logs" bindtap="goPage">用药记录</view>
+  </view>
+
+  <view class="group-title">数据与云服务</view>
+  <view class="card">
+    <view class="entry" hover-class="tap-hover" bindtap="exportBackup">导出备份</view>
+    <view class="entry" hover-class="tap-hover" bindtap="checkCloud">检查云端状态</view>
+  </view>
+
+  <view class="group-title">危险操作</view>
+  <view class="card">
+    <view class="entry danger" hover-class="tap-hover" bindtap="resetAll">还原初始状态</view>
+  </view>
+
+  <view class="app-footer">到时吃药 v{{version}}</view>
+</view>

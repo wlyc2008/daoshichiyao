@@ -1,0 +1,72 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">存一张单据</view>
+
+    <view class="field">
+      <view class="label">单据类型</view>
+      <view class="choice-list">
+        <view
+          wx:for="{{types}}"
+          wx:key="value"
+          class="choice-item {{type === item.value ? 'active' : ''}}"
+          hover-class="tap-hover"
+          data-value="{{item.value}}"
+          bindtap="onTypeTap"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="label">标题</view>
+      <input class="input" value="{{title}}" placeholder="例如 11月出院小结/处方" bindinput="onTitleInput" />
+    </view>
+
+    <view class="field">
+      <view class="label">是否要求复诊</view>
+      <view class="choice-list">
+        <view
+          class="choice-item small {{needFollowup ? 'active' : ''}}"
+          hover-class="tap-hover"
+          data-value="yes"
+          bindtap="onFollowupTap"
+        >需要复诊</view>
+        <view
+          class="choice-item small {{!needFollowup ? 'active' : ''}}"
+          hover-class="tap-hover"
+          data-value="no"
+          bindtap="onFollowupTap"
+        >不需要</view>
+      </view>
+    </view>
+
+    <view wx:if="{{needFollowup}}" class="field">
+      <view class="label">复诊日期</view>
+      <picker mode="date" value="{{followupDate}}" bindchange="onDateChange">
+        <view class="date-btn {{followupDate ? '' : 'empty'}}">{{followupDate || '点击选择复诊日期'}}</view>
+      </picker>
+    </view>
+
+    <view class="field">
+      <image wx:if="{{photoPath}}" class="photo" src="{{photoPath}}" mode="aspectFill" bindtap="previewPhoto" />
+      <button class="btn-secondary" bindtap="takePhoto">{{photoPath ? '重新拍下备查' : '拍下备查'}}</button>
+    </view>
+  </view>
+
+  <button class="btn-primary" bindtap="save">保存到档案</button>
+
+  <view class="card">
+    <view class="section-title">已存单据</view>
+    <view wx:if="{{docs.length === 0}}" class="empty">还没有存过单据</view>
+    <view wx:for="{{docs}}" wx:key="docId" class="doc-item">
+      <image class="thumb" hover-class="tap-hover" src="{{item.photoPath}}" mode="aspectFill" data-path="{{item.photoPath}}" bindtap="previewPhoto" />
+      <view class="doc-info">
+        <view class="doc-title">{{item.title}}</view>
+        <view class="doc-meta">{{item.typeLabel}}<text wx:if="{{item.followupDate}}"> · 复诊 {{item.followupDate}}</text></view>
+        <view wx:if="{{item.note}}" class="doc-note">{{item.note}}</view>
+      </view>
+      <view class="doc-delete" hover-class="tap-hover" data-id="{{item.docId}}" bindtap="removeDoc">删除</view>
+    </view>
+  </view>
+
+  <view class="privacy">所有单据只保存在您的手机本地，不会上传</view>
+</view>

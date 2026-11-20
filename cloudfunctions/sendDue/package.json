@@ -1,0 +1,9 @@
+{
+  "name": "sendDue",
+  "version": "1.0.0",
+  "description": "每分钟检查并发送用药提醒订阅消息",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

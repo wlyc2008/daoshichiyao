@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "到时吃药",
+  "usingComponents": {
+    "dose-confirm-mask": "/components/dose-confirm-mask/dose-confirm-mask"
+  }
+}

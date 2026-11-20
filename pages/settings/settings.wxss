@@ -1,0 +1,8 @@
+/* 设置页沿用 app.wxss 中的 .card / .entry / .entry.danger，无需额外样式 */
+
+.app-footer {
+  margin: 40rpx 0 20rpx;
+  text-align: center;
+  font-size: var(--font-xs);
+  color: var(--color-text-hint);
+}

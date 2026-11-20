@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">一日三餐时间</view>
+    <view class="hint">提醒时间会按这个设置自动提前或推后</view>
+
+    <view class="info-row">
+      <view class="info-label">早餐</view>
+      <picker mode="time" value="{{breakfast}}" data-key="breakfast" bindchange="onTimeChange">
+        <view class="info-value">{{breakfast}}</view>
+      </picker>
+    </view>
+
+    <view class="info-row">
+      <view class="info-label">午餐</view>
+      <picker mode="time" value="{{lunch}}" data-key="lunch" bindchange="onTimeChange">
+        <view class="info-value">{{lunch}}</view>
+      </picker>
+    </view>
+
+    <view class="info-row">
+      <view class="info-label">晚餐</view>
+      <picker mode="time" value="{{dinner}}" data-key="dinner" bindchange="onTimeChange">
+        <view class="info-value">{{dinner}}</view>
+      </picker>
+    </view>
+  </view>
+
+  <button class="btn-primary" bindtap="save">保存</button>
+</view>

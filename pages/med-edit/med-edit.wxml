@@ -1,0 +1,158 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">药品名称与用法</view>
+
+    <view class="field">
+      <view class="label">药名</view>
+      <input class="input" value="{{name}}" placeholder="请填写药名" maxlength="30" bindinput="onNameInput" />
+    </view>
+
+    <view class="field">
+      <view class="label">每次数量</view>
+      <input class="input" type="number" value="{{dose}}" placeholder="例如 1" bindinput="onDoseInput" />
+      <view class="choice-list unit-list">
+        <view
+          wx:for="{{unitOptions}}"
+          wx:key="*this"
+          class="choice-item small {{unitIndex === index ? 'active' : ''}}"
+          hover-class="tap-hover"
+          data-index="{{index}}"
+          bindtap="onUnitTap"
+        >{{item}}</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">服药模式</view>
+
+    <view class="mode-list">
+      <view
+        wx:for="{{modes}}"
+        wx:key="value"
+        class="mode-item {{mode === item.value ? 'active' : ''}}"
+        hover-class="tap-hover"
+        data-mode="{{item.value}}"
+        bindtap="onModeTap"
+      >{{item.label}}</view>
+    </view>
+
+    <block wx:if="{{mode === 'meal'}}">
+      <view class="field">
+        <view class="label">选择哪几餐（可多选）</view>
+        <view class="choice-list">
+          <view
+            wx:for="{{mealOptions}}"
+            wx:key="value"
+            class="choice-item small {{item.active ? 'active' : ''}}"
+            hover-class="tap-hover"
+            data-value="{{item.value}}"
+            bindtap="onMealTap"
+          >{{item.label}}</view>
+        </view>
+      </view>
+
+      <view class="field">
+        <view class="label">餐前 / 餐中 / 餐后</view>
+        <view class="choice-list">
+          <view
+            wx:for="{{offsetOptions}}"
+            wx:key="value"
+            class="choice-item {{item.active ? 'active' : ''}}"
+            hover-class="tap-hover"
+            data-value="{{item.value}}"
+            bindtap="onOffsetTap"
+          >{{item.label}}</view>
+        </view>
+      </view>
+    </block>
+
+    <view class="field" wx:if="{{mode === 'routine'}}">
+      <view class="label">选择作息时刻（可多选）</view>
+      <view class="choice-list">
+        <view
+          wx:for="{{routineOptions}}"
+          wx:key="value"
+          class="choice-item small {{item.active ? 'active' : ''}}"
+          hover-class="tap-hover"
+          data-value="{{item.value}}"
+          bindtap="onRoutineTap"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <block wx:if="{{mode === 'interval'}}">
+      <view class="field">
+        <view class="label">第一次服药时间</view>
+        <picker mode="time" value="{{intervalStart}}" bindchange="onIntervalStartChange">
+          <view class="picker">{{intervalStart}}</view>
+        </picker>
+      </view>
+
+      <view class="field">
+        <view class="label">服药间隔</view>
+        <view class="choice-list">
+          <view
+            wx:for="{{intervalOptions}}"
+            wx:key="value"
+            class="choice-item small {{item.active ? 'active' : ''}}"
+            hover-class="tap-hover"
+            data-value="{{item.value}}"
+            bindtap="onIntervalTap"
+          >{{item.label}}</view>
+        </view>
+      </view>
+      <view class="hint">从第一次时间起按间隔顺延，跨天自动循环</view>
+    </block>
+
+    <block wx:if="{{mode === 'custom'}}">
+      <view class="field">
+        <view class="label">点选服药时间（最多 5 个）</view>
+        <view class="hour-grid">
+          <view
+            wx:for="{{customHours}}"
+            wx:key="hour"
+            class="hour-cell {{item.selected ? 'active' : ''}}"
+            hover-class="tap-hover"
+            data-hour="{{item.hour}}"
+            bindtap="onHourTap"
+          >{{item.hour}}</view>
+        </view>
+        <view class="hint">24 表示次日 0 点；点选后可在下方调整到具体分钟</view>
+      </view>
+
+      <view class="field" wx:if="{{customTimes.length}}">
+        <view class="label">已选时间</view>
+        <view class="custom-list">
+          <view class="custom-row" wx:for="{{customTimes}}" wx:key="*this">
+            <picker mode="time" value="{{item}}" data-time="{{item}}" bindchange="onCustomTimeChange">
+              <view class="picker custom-time">{{item}}　调整</view>
+            </picker>
+            <view class="custom-del" data-time="{{item}}" bindtap="removeCustomTime">删除</view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <view class="preview">{{previewText}}</view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">库存与照片</view>
+
+    <view class="field">
+      <view class="label">当前库存（{{unitOptions[unitIndex]}}）</view>
+      <input class="input" type="number" value="{{remainingPills}}" placeholder="例如 30" bindinput="onStockInput" />
+    </view>
+
+    <view class="field">
+      <view class="hint">拍下药盒或单据，方便以后核对，照片只保存在本机</view>
+      <image wx:if="{{photoPath}}" class="photo" src="{{photoPath}}" mode="aspectFill" bindtap="previewPhoto" />
+      <button class="btn-secondary" bindtap="takePhoto">{{photoPath ? '重新拍下备查' : '拍下备查'}}</button>
+    </view>
+  </view>
+
+  <button class="btn-primary" bindtap="save" disabled="{{saving}}">{{isEdit ? '保存修改' : '添加药品'}}</button>
+
+  <view class="privacy">照片与填写内容只保存在本机；提醒计划会同步到云端用于发送提醒</view>
+</view>

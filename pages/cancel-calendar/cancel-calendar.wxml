@@ -1,0 +1,39 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">方法一：删除专用日历（推荐）</view>
+
+    <view class="step">
+      <view class="step-no">1</view>
+      <view class="step-text">打开手机上的「日历」应用</view>
+    </view>
+    <view class="step">
+      <view class="step-no">2</view>
+      <view class="step-text">找到名为「到时吃药」的日历</view>
+    </view>
+    <view class="step">
+      <view class="step-no">3</view>
+      <view class="step-text">删除这个日历，里面的全部响铃会一起清除</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">方法二：搜索后批量删除</view>
+
+    <view class="step">
+      <view class="step-no">1</view>
+      <view class="step-text">在日历的搜索框输入「服药」</view>
+    </view>
+    <view class="step">
+      <view class="step-no">2</view>
+      <view class="step-text">长按搜索结果，选择全部</view>
+    </view>
+    <view class="step">
+      <view class="step-no">3</view>
+      <view class="step-text">点击删除</view>
+    </view>
+  </view>
+
+  <view class="hint">取消后如果还需要日历提醒，请回到「设置」→「设置日历提醒」重新发送。</view>
+
+  <button class="btn-primary" hover-class="tap-hover" bindtap="back">我已知晓</button>
+</view>

@@ -1,0 +1,466 @@
+/* ==========================================================
+   到时吃药 · 全局设计规范（Phase 1）
+   适老化基准：正文不小于 36rpx，可点区域不小于 96rpx
+   所有页面只允许引用变量与基础类，禁止再写死颜色值
+   ========================================================== */
+
+page {
+  /* ---------- 色彩 ---------- */
+  --color-primary: #2E7D32;        /* 医疗绿：主操作、当前状态 */
+  --color-primary-dark: #1B5E20;   /* 主色按下态 */
+  --color-primary-light: #E8F5E9;  /* 主色浅底：已完成 */
+  --color-warn: #E65100;           /* 提醒橙：待服用、需要关注 */
+  --color-warn-light: #FFF3E0;
+  --color-danger: #C62828;         /* 危险红：停用、删除、还原 */
+  --color-danger-light: #FFEBEE;
+  --color-text: #1A1A1A;           /* 正文 */
+  --color-text-weak: #5F5F5F;      /* 次要信息 */
+  --color-text-hint: #767676;      /* 说明与隐私文案 */
+  --color-border: #E8EAEC;         /* 分隔线 */
+  --color-arrow: #C4C8CC;          /* 列表箭头 */
+  --color-bg: #F2F4F5;             /* 页面底色 */
+  --color-bg-2: #F2F4F5;           /* 兼容旧变量 */
+  --color-card: #FFFFFF;           /* 卡片底色 */
+  --color-placeholder: #EDEDED;    /* 图片/输入占位 */
+
+  /* ---------- 字号 ---------- */
+  --font-h1: 48rpx;    /* 页面主标题 */
+  --font-h2: 42rpx;    /* 区块标题 */
+  --font-body: 36rpx;  /* 正文 */
+  --font-sm: 32rpx;    /* 次要正文 */
+  --font-xs: 28rpx;    /* 说明文字 */
+
+  /* ---------- 圆角与阴影 ---------- */
+  --radius-card: 24rpx;
+  --radius-sm: 12rpx;
+  --radius-pill: 999rpx;
+  --shadow-card: 0 4rpx 16rpx rgba(26, 26, 26, 0.06);
+
+  /* ---------- 间距与控件高度 ---------- */
+  --space-page: 28rpx;
+  --space-card: 32rpx;
+  --height-entry: 104rpx;
+  --height-btn: 112rpx;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: var(--font-body);
+  line-height: 1.6;
+}
+
+/* ========== 基础重置 ========== */
+button {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  line-height: inherit;
+  background: transparent;
+  border-radius: 0;
+}
+
+button::after {
+  border: none;
+}
+
+/* ========== 布局 ========== */
+.page {
+  min-height: 100vh;
+  padding: var(--space-page);
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* 统一卡片：白底 + 大圆角 + 浅阴影 */
+.card {
+  background: var(--color-card);
+  border-radius: var(--radius-card);
+  padding: var(--space-card);
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-card);
+}
+
+/* 区块标题：左侧绿色短竖条，页面间保持同一视觉锚点 */
+.section-title {
+  position: relative;
+  padding-left: 22rpx;
+  font-size: var(--font-h2);
+  font-weight: bold;
+  margin-bottom: 24rpx;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8rpx;
+  height: 34rpx;
+  border-radius: 4rpx;
+  background: var(--color-primary);
+  transform: translateY(-50%);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+}
+
+/* 列表行之间的统一分隔线 */
+.divider {
+  border-top: 2rpx solid var(--color-border);
+}
+
+/* ========== 设置类列表行 ========== */
+.entry {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--height-entry);
+  padding-right: 44rpx;
+  font-size: var(--font-body);
+  border-top: 2rpx solid var(--color-border);
+}
+
+.entry:first-child {
+  border-top: none;
+}
+
+/* 右侧箭头，告诉老人「这一行可以点」 */
+.entry::after {
+  content: '';
+  position: absolute;
+  right: 12rpx;
+  top: 50%;
+  width: 16rpx;
+  height: 16rpx;
+  border-top: 3rpx solid var(--color-arrow);
+  border-right: 3rpx solid var(--color-arrow);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+/* 点击时的按压反馈，避免误以为没点到 */
+.entry:active {
+  background: var(--color-bg);
+}
+
+.entry.danger {
+  color: var(--color-danger);
+}
+
+/* ========== 按钮 ========== */
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  width: 100%;
+  height: var(--height-btn);
+  line-height: var(--height-btn);
+  text-align: center;
+  border-radius: var(--radius-card);
+  font-size: var(--font-h2);
+  font-weight: bold;
+  margin-top: 24rpx;
+  box-sizing: border-box;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #FFFFFF;
+}
+
+.btn-primary:active {
+  background: var(--color-primary-dark);
+}
+
+.btn-secondary {
+  background: var(--color-card);
+  color: var(--color-primary);
+  border: 2rpx solid var(--color-primary);
+}
+
+.btn-secondary:active {
+  background: var(--color-primary-light);
+}
+
+.btn-danger {
+  background: var(--color-card);
+  color: var(--color-danger);
+  border: 2rpx solid var(--color-danger);
+}
+
+.btn-danger:active {
+  background: var(--color-danger-light);
+}
+
+/* ========== 标签 ========== */
+.tag {
+  flex-shrink: 0;
+  padding: 6rpx 18rpx;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-xs);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.tag-pending {
+  background: var(--color-warn-light);
+  color: var(--color-warn);
+}
+
+.tag-done {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+.tag-danger {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+/* ========== 文本 ========== */
+.hint {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+.notice {
+  margin: 16rpx 0;
+  padding: 16rpx 20rpx;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: var(--font-xs);
+  line-height: 1.5;
+}
+
+.notice-warn {
+  background: var(--color-warn-light);
+  color: var(--color-warn);
+}
+
+.empty {
+  text-align: center;
+  padding: 80rpx 0;
+  font-size: var(--font-body);
+  color: var(--color-text-weak);
+}
+
+.empty-text {
+  font-size: var(--font-body);
+  color: var(--color-text-weak);
+  line-height: 1.6;
+}
+
+.privacy {
+  text-align: center;
+  font-size: var(--font-xs);
+  color: var(--color-text-hint);
+  line-height: 1.6;
+  margin: 24rpx 0 16rpx;
+}
+
+.danger-text {
+  color: var(--color-danger);
+}
+
+/* 已停用的药品统一弱化显示 */
+.inactive {
+  opacity: 0.6;
+}
+
+/* 可点区域的统一按压反馈（配合 hover-class 使用，兼容各机型） */
+.tap-hover {
+  background: var(--color-bg);
+}
+
+/* ========== 分组标题：卡片上方的浅色小标题 ========== */
+.group-title {
+  font-size: var(--font-xs);
+  color: var(--color-text-hint);
+  letter-spacing: 1rpx;
+  margin: 16rpx 8rpx 12rpx;
+}
+
+.group-title:first-child {
+  margin-top: 0;
+}
+
+/* ========== 药品卡片（首页 / 药品管理共用） ========== */
+.med-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.med-name {
+  flex: 1;
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.med-meta {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  margin-top: 8rpx;
+}
+
+/* ========== 表单字段（药品编辑 / 医疗档案共用） ========== */
+.field {
+  padding: 24rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.field:first-child {
+  padding-top: 8rpx;
+}
+
+.field:last-child {
+  border-bottom: none;
+  padding-bottom: 8rpx;
+}
+
+.label {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  margin-bottom: 12rpx;
+}
+
+.input {
+  height: 88rpx;
+  font-size: var(--font-h2);
+}
+
+.picker {
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: var(--font-h2);
+  color: var(--color-primary);
+}
+
+/* 选项组：一日几次、单位、单据类型等统一用胶囊方块 */
+.choice-list {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.choice-item {
+  min-width: 180rpx;
+  height: 96rpx;
+  line-height: 96rpx;
+  text-align: center;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-sm);
+  margin: 0 16rpx 16rpx 0;
+  padding: 0 24rpx;
+  font-size: var(--font-body);
+  box-sizing: border-box;
+}
+
+.choice-item:active {
+  background: var(--color-bg);
+}
+
+.choice-item.active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+  font-weight: bold;
+}
+
+.choice-item.small {
+  min-width: 140rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 20rpx;
+  font-size: var(--font-sm);
+}
+
+/* ========== 信息行（三餐时间、设置项右侧值） ========== */
+.info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 104rpx;
+  border-top: 2rpx solid var(--color-border);
+}
+
+.info-row:first-of-type {
+  border-top: none;
+}
+
+.info-label {
+  font-size: var(--font-body);
+}
+
+.info-value {
+  min-width: 200rpx;
+  text-align: right;
+  font-size: var(--font-h2);
+  color: var(--color-primary);
+}
+
+/* ========== 卡片底部操作栏（修改 / 补货 / 停用 / 删除） ========== */
+.action-bar {
+  display: flex;
+  margin-top: 24rpx;
+  padding-top: 8rpx;
+  border-top: 2rpx solid var(--color-border);
+}
+
+.action-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  font-size: var(--font-body);
+  color: var(--color-primary);
+  border-radius: var(--radius-sm);
+}
+
+.action-btn:active {
+  background: var(--color-bg);
+}
+
+.action-btn.danger {
+  color: var(--color-danger);
+}
+
+/* ========== 今日进度摘要（首页） ========== */
+.summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 20rpx;
+  margin-bottom: 8rpx;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.summary-main {
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.summary-sub {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+}
+
+.summary-sub.done {
+  color: var(--color-primary);
+  font-weight: bold;
+}
+
+/* ========== 动效 ========== */
+@keyframes card-rise {
+  from {
+    transform: translateY(12rpx);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.card {
+  animation: card-rise 0.22s ease-out;
+}

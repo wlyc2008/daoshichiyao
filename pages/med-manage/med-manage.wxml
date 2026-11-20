@@ -1,0 +1,24 @@
+<view class="page">
+  <button class="btn-primary" bindtap="goAdd">添加药品</button>
+
+  <view wx:if="{{meds.length}}" class="hint med-count">共 {{meds.length}} 种药品</view>
+
+  <view wx:if="{{meds.length === 0}}" class="card empty">还没有添加药品</view>
+
+  <view wx:for="{{meds}}" wx:key="id" class="card {{item.isActive === false ? 'inactive' : ''}}">
+    <view class="med-head">
+      <view class="med-name">{{item.name}}</view>
+      <view class="tag {{item.isActive === false ? 'tag-danger' : 'tag-done'}}">{{item.statusText}}</view>
+    </view>
+
+    <view class="med-meta">{{item.ruleText}} · 一日{{item.times}}次 · 每次 {{item.dose}}{{item.unit}}</view>
+    <view class="med-meta {{item.needRefill ? 'danger-text' : ''}}">库存 {{item.remainingPills}} {{item.unit}}，可用 {{item.daysText}}</view>
+
+    <view class="action-bar">
+      <view class="action-btn" hover-class="tap-hover" data-id="{{item.id}}" bindtap="goEdit">修改</view>
+      <view class="action-btn" hover-class="tap-hover" data-id="{{item.id}}" bindtap="restock">补货</view>
+      <view class="action-btn" hover-class="tap-hover" data-id="{{item.id}}" bindtap="toggleMed">{{item.isActive === false ? '恢复' : '停用'}}</view>
+      <view class="action-btn danger" hover-class="tap-hover" data-id="{{item.id}}" bindtap="removeMed">删除</view>
+    </view>
+  </view>
+</view>

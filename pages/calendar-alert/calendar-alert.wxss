@@ -1,0 +1,37 @@
+.plan-row {
+  min-height: 96rpx;
+  line-height: 96rpx;
+  font-size: var(--font-body);
+  border-top: 2rpx solid var(--color-border);
+}
+
+.foot-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24rpx;
+}
+
+.link {
+  font-size: var(--font-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.steps {
+  margin: 20rpx 0 24rpx;
+}
+
+.step {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+.cancel-link {
+  margin-top: 24rpx;
+  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}

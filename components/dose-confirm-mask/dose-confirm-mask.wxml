@@ -1,0 +1,13 @@
+<view wx:if="{{visible}}" class="mask">
+  <view class="mask-body">
+    <view class="mask-tip">该吃药了</view>
+    <view class="mask-time">{{timeText}}</view>
+    <view class="mask-name">{{name}}</view>
+    <view class="mask-dose">每次 {{dose}} {{unit}}</view>
+
+    <button class="mask-primary" bindtap="onConfirm">已服用</button>
+    <button class="mask-secondary" bindtap="onSnooze">稍后 10 分钟</button>
+
+    <view class="mask-note">请确认本次服药后再离开</view>
+  </view>
+</view>

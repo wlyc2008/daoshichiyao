@@ -1,0 +1,28 @@
+.plan-row {
+  min-height: 96rpx;
+  line-height: 96rpx;
+  font-size: var(--font-body);
+  border-top: 2rpx solid var(--color-border);
+}
+
+.plan-row:first-of-type {
+  border-top: none;
+}
+
+.foot-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24rpx;
+}
+
+.link {
+  font-size: var(--font-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
+.small {
+  font-size: var(--font-xs);
+  margin-top: 16rpx;
+}

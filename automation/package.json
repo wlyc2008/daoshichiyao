@@ -1,0 +1,12 @@
+{
+  "name": "wx-automation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "小程序自动化调试脚本（不参与打包）",
+  "scripts": {
+    "shot": "node shot.js"
+  },
+  "dependencies": {
+    "miniprogram-automator": "^0.13.0"
+  }
+}

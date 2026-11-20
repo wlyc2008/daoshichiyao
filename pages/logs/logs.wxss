@@ -1,0 +1,33 @@
+.log-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.log-main {
+  flex: 1;
+}
+
+.log-name {
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.log-time {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  margin-top: 6rpx;
+}
+
+.log-side {
+  text-align: right;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.undo {
+  margin-top: 16rpx;
+  font-size: var(--font-sm);
+  color: var(--color-primary);
+  text-decoration: underline;
+}

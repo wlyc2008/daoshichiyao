@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="card">
+    <view class="section-title">今天的提醒时刻</view>
+    <view wx:if="{{!hasMeds}}" class="empty">还没有药品，请先添加</view>
+    <view wx:for="{{items}}" wx:key="text" class="plan-row">{{item.text}}</view>
+    <view class="foot-links">
+      <view class="link" hover-class="tap-hover" bindtap="goMealTimes">调整三餐时间</view>
+      <view class="link" hover-class="tap-hover" bindtap="goRoutineTimes">调整起居时间</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <view class="section-title">微信提醒</view>
+    <view class="hint">开启后，到点会收到微信服务通知。需要在关掉微信后也能响铃，请用「设置」里的「设置日历提醒」。</view>
+    <view wx:if="{{syncText}}" class="notice {{syncStale ? 'notice-warn' : ''}}">{{syncText}}</view>
+    <button class="btn-primary" bindtap="requestSubscribe">开启微信提醒</button>
+  </view>
+</view>
