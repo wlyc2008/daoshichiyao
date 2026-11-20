@@ -1,6 +1,7 @@
 const storage = require('../../utils/storage');
 const stock = require('../../utils/stock');
 const medSchedule = require('../../utils/medSchedule');
+const planSync = require('../../utils/planSync');
 
 Page({
   data: {
@@ -50,6 +51,7 @@ Page({
           return;
         }
         storage.addStock(id, amount);
+        planSync.syncIfChanged();
         this.refresh();
         wx.showToast({ title: '已补充', icon: 'success' });
       }
@@ -68,6 +70,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         storage.toggleMed(id);
+        planSync.syncIfChanged();
         this.refresh();
         wx.showToast({ title: stopping ? '已停用' : '已恢复', icon: 'none' });
       }
@@ -82,6 +85,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         storage.deleteMed(id);
+        planSync.syncIfChanged();
         this.refresh();
         wx.showToast({ title: '已删除', icon: 'none' });
       }

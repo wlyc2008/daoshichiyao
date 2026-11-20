@@ -669,6 +669,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 **同步与推送**
 
 - 本地 `utils/planSync.js` 同时维护两个指纹：V1 `planSignature`（`reminder_plans`）与 `medPlanSignature`（`med_plans`），任一变化才调云函数
+- 触发时机：药品保存 / 补货 / 停用 / 删除后立即同步；绑定关系变化时强制重写（`syncIfChanged(true)`）刷新 `targetId`
 - 新增云函数 `syncMedPlans`：按 `ownerId + medId` upsert，本地删除的药品同步删除云端计划；每次同步刷新 `targetId`
 - `sendDue` 保留 V1 `reminder_plans` 逻辑，并行新增 `med_plans` 推送：
   - 以 `ownerId` 当前 `linkedId` 解析 targetId，解绑/换绑后立即停止

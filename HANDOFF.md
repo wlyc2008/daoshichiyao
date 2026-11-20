@@ -61,6 +61,8 @@ git diff v1.0.0 v2.0
 6. **药品计划上云（Phase 3）**：
    - 药品编辑页新增「提醒强度」：柔和 / 标准 / 强力
    - `utils/planSync.js` 用 `medPlanSignature` 判断变化，只有改动时才调 `syncMedPlans` 写 `med_plans`
+   - 药品保存、补货、停用、删除后立即触发同步，不必等回到首页
+   - 绑定/解绑后首页强制重写计划，保证 `med_plans.targetId` 最新
    - `sendDue` 保留 V1 逻辑，并行按 targetId 推给长辈：跳过暂停、解绑、额度耗尽
    - 长辈授权额度落在 `users.quota`：`accept` / `resume` +1，发送成功 -1
 

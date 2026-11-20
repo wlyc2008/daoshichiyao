@@ -68,8 +68,11 @@ function buildPlanSignature(plans) {
   ].join(',')).sort().join('|');
 }
 
-/** 计划有变化时才同步，返回是否真正发起了云端写入 */
-function syncIfChanged() {
+/**
+ * 计划有变化时才同步，返回是否真正发起了云端写入
+ * @param {boolean} force 绑定关系变化时强制重写，刷新云端 targetId
+ */
+function syncIfChanged(force) {
   if (!cloud.isEnabled()) return Promise.resolve(false);
 
   const settings = storage.getSettings();
@@ -78,12 +81,12 @@ function syncIfChanged() {
   const planSignature = buildPlanSignature(plans);
 
   const tasks = [];
-  if (settings.planSignature !== signature) {
+  if (force || settings.planSignature !== signature) {
     tasks.push(cloud.syncPlan(buildItems(), 0).then(() => {
       storage.setSettings({ planSignature: signature });
     }));
   }
-  if (settings.medPlanSignature !== planSignature) {
+  if (force || settings.medPlanSignature !== planSignature) {
     tasks.push(cloud.callFunction('syncMedPlans', { plans: plans }).then((res) => {
       if (res && res.ok === false) throw new Error(res.msg || '计划同步失败');
       storage.setSettings({ medPlanSignature: planSignature });

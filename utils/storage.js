@@ -30,7 +30,8 @@ const DEFAULT_SETTINGS = {
   subscribeRequestedAt: '',
   wechatSignature: '',
   planSignature: '',
-  medPlanSignature: ''
+  medPlanSignature: '',
+  boundTargetId: ''
 };
 
 /** 生成唯一 ID：时间戳 + 三位随机数，避免同一毫秒内重复 */

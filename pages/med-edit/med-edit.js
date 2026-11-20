@@ -1,6 +1,7 @@
 const storage = require('../../utils/storage');
 const fileManager = require('../../utils/fileManager');
 const medSchedule = require('../../utils/medSchedule');
+const planSync = require('../../utils/planSync');
 
 const UNIT_LIST = ['片', '支', '毫升'];
 
@@ -384,6 +385,8 @@ Page({
       } else {
         storage.addMed(payload);
       }
+      // 保存即上云，避免用户停留在设置页时提醒计划还是旧数据
+      planSync.syncIfChanged();
       wx.showToast({ title: this.data.isEdit ? '已保存' : '已添加', icon: 'success' });
       setTimeout(() => wx.navigateBack(), 600);
     } catch (err) {

@@ -131,6 +131,7 @@ Page({
           partnerNotifyState: '',
           partnerPaused: false
         });
+        this.syncTarget('');
         return;
       }
 
@@ -155,7 +156,16 @@ Page({
         partnerPaused: partnerPaused,
         bindStatusText: bindStatusText
       });
+      this.syncTarget(profile.linkedId || '');
     }).catch(() => {});
+  },
+
+  /** 绑定关系变化后强制重写云端计划，保证 med_plans.targetId 是最新的 */
+  syncTarget(targetId) {
+    const next = targetId || '';
+    if (storage.getSettings().boundTargetId === next) return;
+    storage.setSettings({ boundTargetId: next });
+    planSync.syncIfChanged(true);
   },
 
   /** 长辈点「我知道了」后收起操作区，只留一句已开启提示 */
