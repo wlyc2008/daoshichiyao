@@ -72,3 +72,13 @@
   letter-spacing: 12rpx;
   text-align: center;
 }
+
+/* 完成后的小号出口：不想进小程序时可直接关闭 */
+.link-close {
+  margin-top: 12rpx;
+  padding: 16rpx 0;
+  text-align: center;
+  font-size: var(--font-sm);
+  color: var(--color-text-hint);
+  text-decoration: underline;
+}

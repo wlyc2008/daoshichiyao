@@ -12,6 +12,12 @@ Page({
     this.syncStatus();
   },
 
+  /** 下拉刷新绑定状态，长辈刚绑定完可立即看到 */
+  onPullDownRefresh() {
+    this.syncStatus();
+    wx.stopPullDownRefresh();
+  },
+
   syncStatus() {
     bind.fetchStatus().then((res) => {
       const profile = res.profile;

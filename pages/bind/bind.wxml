@@ -43,7 +43,8 @@
       <view class="intro-sub">家人已收到通知。到时间微信会提醒您，记得按「已吃药」。</view>
     </view>
     <view class="card">
-      <button class="btn-primary" bindtap="goHome">知道了</button>
+      <button class="btn-primary" bindtap="goHome">知道了，去首页</button>
+      <view class="link-close" bindtap="onClose">关闭小程序</view>
     </view>
   </block>
 

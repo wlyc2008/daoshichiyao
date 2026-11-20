@@ -2,7 +2,7 @@
   <view wx:if="{{bound}}" class="card">
     <view class="section-title">已和{{boundText}}绑定</view>
     <view class="empty-text">长辈已接受邀请，到点会自动收到微信提醒。</view>
-    <view class="entry-link danger-link" bindtap="onUnbind">解除绑定</view>
+    <button class="btn-danger" bindtap="onUnbind">解除绑定</button>
   </view>
 
   <block wx:else>
