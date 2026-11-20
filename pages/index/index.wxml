@@ -38,7 +38,7 @@
     <view wx:if="{{bound}}" class="card">
       <view class="section-title">已开启家人的提醒</view>
       <view wx:if="{{!acked}}" class="empty-text">到时间微信会提醒您吃药，吃完按一下「已吃药」就好。</view>
-      <view wx:else class="empty-text">已开启，到时微信会提醒您吃药。可以关闭小程序了。</view>
+      <view wx:else class="empty-text">已开启，到时微信会提醒您吃药。可以点击右上角圆点关闭小程序了。</view>
 
       <block wx:if="{{!acked}}">
         <button class="btn-primary" bindtap="onAck">我知道了</button>
