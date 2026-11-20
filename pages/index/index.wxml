@@ -27,6 +27,7 @@
     </view>
 
     <view class="entry-link" bindtap="goBind">已有家人给的邀请码？点这里输入</view>
+    <view class="entry-link" bindtap="goRestore">换手机了？从云端恢复备份</view>
   </block>
 
   <!-- 长辈：等待家人发送关怀邀请 -->

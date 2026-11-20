@@ -6,7 +6,7 @@
 
 ## 1. 现状一句话
 
-V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定**、**Phase 3 计划上云 + 按 targetId 推送**、**Phase 4 服药确认**、**Phase 5 漏服看护/历史记录**与 **Phase 6 完成率周报**，下一步是 **双机验收与上线准备**。
+V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定**、**Phase 3 计划上云 + 按 targetId 推送**、**Phase 4 服药确认**、**Phase 5 漏服看护/历史记录**、**Phase 6 完成率周报**与 **Phase 7 备份换机恢复**，下一步是 **双机验收与上线准备**。
 
 ---
 
@@ -80,6 +80,11 @@ git diff v1.0.0 v2.0
    - `medLog.stats` 统计最近 7 天应服 / 已服 / 漏服与逐日完成率
    - 新页面 `pages/care-stats`：大号完成率 + 三项汇总 + 每天条形趋势
    - 子女首页「长辈今天」底部入口：本周统计 / 查看历史记录
+10. **备份与换机恢复（Phase 7）**：
+   - 云函数 `backupData` + 集合 `backups`，每个用户一份覆盖式备份
+   - 设置页「备份到云端」「从云端恢复」；身份选择页也可直接恢复
+   - 备份药品、档案、本机用药记录、三餐/作息与设置；照片不包含
+   - 恢复后清空计划签名，自动重新同步云端计划
 
 ---
 
@@ -92,15 +97,18 @@ git diff v1.0.0 v2.0
 | `pages/settings/settings.js` | 设置页：顶部「亲情提醒」卡片（分享、邀请码、漏服通知、解绑） |
 | `pages/care-history/care-history.js` | 子女端执行记录：按日期查看已吃药 / 漏服 |
 | `pages/care-stats/care-stats.js` | 子女端本周统计：完成率、应服/已服/漏服、每天趋势 |
+| `pages/restore/restore.js` | 换机恢复：读取云端备份、二次确认、覆盖本机并重启 |
 | `utils/bind.js` | 绑定接口封装：`createInvite / peek / acceptInvite / pause / resume / grant / unbind / fetchStatus` |
 | `utils/role.js` | 身份读写（本地 + 云端登记） |
 | `utils/cloud.js` | 云开发封装，含通用 `callFunction` |
 | `utils/planSync.js` | 计划上云：V1 `reminder_plans` + V2 `med_plans` 双指纹同步 |
+| `utils/backup.js` | 备份与恢复封装：`collect / save / info / fetchBackup / apply / restore` |
 | `utils/medLog.js` | 今日用药读取、历史记录与「已吃药」确认封装 |
 | `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / grant / unbind`，并维护双方 `quota` |
 | `cloudfunctions/syncMedPlans/index.js` | 按 `ownerId + medId` upsert `med_plans`，删除本地已移除的计划 |
 | `cloudfunctions/sendDue/index.js` | 定时推送：V1 计划 + `med_plans` 按 targetId 推给长辈；强力模式漏服 Watchdog |
 | `cloudfunctions/medLog/index.js` | `today` 今日用药与库存/复诊提示、`confirm` 写 `med_logs`、`history` 历史记录、`stats` 完成率周报 |
+| `cloudfunctions/backupData/index.js` | `save / info / load` 云端备份，每个用户覆盖式一份 |
 | `MASTER_PLAN.md` | 第 12 章已记录 v2.0 交互逻辑，改完逻辑记得同步 |
 
 ---
@@ -118,6 +126,7 @@ git diff v1.0.0 v2.0
 | `reminder_plans` | V1 自提醒计划（未绑定也能用） |
 | `med_plans` | `ownerId / targetId / medId / medName / dose / unit / intensity / schedule / stock / nextVisit / status` |
 | `med_logs` | `planId / medId / ownerId / targetId / medName / dose / unit / time / plannedTime / dateKey / status（taken / missed）/ confirmedAt / detectedAt` |
+| `backups` | `ownerId / version / updatedAt / counts / payload`（每个用户一份，覆盖式） |
 
 部署命令（已验证可用）：
 
@@ -136,6 +145,7 @@ git diff v1.0.0 v2.0
 - 设置页顶部「亲情提醒」：未绑定显示「发送给父母」+ 邀请码复制；已绑定显示状态说明 + 解除绑定
 - 已绑定时可「开启漏服通知 / 补充一次通知额度」，额度展示在卡片内
 - 首页「长辈今天」：库存不足 3 天 / 7 天内复诊提示，底部「本周统计」「查看历史记录」入口
+- 设置页「数据与云服务」：备份到云端 / 从云端恢复 / 导出备份到剪贴板 / 检查云端状态
 - 邀请码仅在未绑定时生成，首页不再预生成
 
 ### 长辈端
@@ -160,20 +170,22 @@ git diff v1.0.0 v2.0
 
 ## 9. 下一步：验收与上线准备
 
-Phase 6 已完成并部署（Phase 5 能力一并保留）：
+Phase 7 已完成并部署（Phase 5 / 6 能力一并保留）：
 
 1. `sendDue` 每 5 分钟边界执行漏服 Watchdog，写 `med_logs.status = 'missed'` 并反向通知子女
 2. `bindUser.grant` + 设置页「漏服通知」为子女申请通知额度
 3. `medLog.today` 返回库存不足 3 天 / 7 天内复诊提示
 4. `medLog.history` + `pages/care-history` 按日期查看执行记录
 5. `medLog.stats` + `pages/care-stats` 最近 7 天完成率与每天趋势
+6. `backupData` + `utils/backup.js` + `pages/restore` 云端备份与换机恢复（照片不包含）
 
 ### 建议后续
 1. 双机联调完整链路：绑定 → 强力药 → 到点提醒 → 超时未确认 → 子女收到漏服通知 → 查看历史与本周统计
 2. 真机验证订阅消息额度：长辈 `accept` / 子女 `grant` 是否各 +1，发送后是否 -1
-3. 上线前把 `utils/config.js` 与 `sendDue` 的 `MINIPROGRAM_STATE` 统一为 `formal`
-4. 不要破坏 V1 的 `reminder_plans`，做增量；云函数 3 秒超时，批量发送保持分批
-5. 改完同步更新 `MASTER_PLAN.md` 第 12 章
+3. 换机验证备份：旧机备份 → 新机选「从云端恢复」→ 药品、档案、三餐作息与设置完整
+4. 上线前把 `utils/config.js` 与 `sendDue` 的 `MINIPROGRAM_STATE` 统一为 `formal`
+5. 不要破坏 V1 的 `reminder_plans`，做增量；云函数 3 秒超时，批量发送保持分批
+6. 改完同步更新 `MASTER_PLAN.md` 第 12 章
 
 ---
 
@@ -185,6 +197,7 @@ Phase 6 已完成并部署（Phase 5 能力一并保留）：
   - Phase 4 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase4.js`（今日用药 + 确认/幂等/库存）
   - Phase 5 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase5.js`（漏服 Watchdog、反向通知、幂等、历史、库存/复诊提示）
   - Phase 6 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase6.js`（7 天应服/已服/漏服、完成率、每天趋势）
+  - Phase 7 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase7.js`（备份保存/信息/读取/覆盖/限额）
   - 用法：把对应 `cloudfunctions/*` 复制到该目录，`node run.js`
 - **双机联调**：子女端复制邀请码 → 长辈端首页输码 → 双方状态互看
 - **前端结构自检**：
@@ -198,4 +211,4 @@ node --check pages/index/index.js
 
 ## 11. 新会话开场提示
 
-> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支。Phase 6（最近 7 天完成率周报）已完成并部署，下一步是双机验收与上线准备。
+> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支。Phase 7（云端备份与换机恢复）已完成并部署，下一步是双机验收与上线准备。

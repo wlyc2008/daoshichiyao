@@ -13,6 +13,7 @@
     "pages/logs/logs",
     "pages/care-history/care-history",
     "pages/care-stats/care-stats",
+    "pages/restore/restore",
     "pages/settings/settings"
   ],
   "window": {

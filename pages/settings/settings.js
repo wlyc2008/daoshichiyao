@@ -5,6 +5,7 @@ const fileManager = require('../../utils/fileManager');
 const planSync = require('../../utils/planSync');
 const config = require('../../utils/config');
 const bind = require('../../utils/bind');
+const backup = require('../../utils/backup');
 
 Page({
   data: {
@@ -19,7 +20,8 @@ Page({
     isCaregiver: false,
     careQuota: 0,
     careNotifyState: '',
-    grantingCare: false
+    grantingCare: false,
+    backingUp: false
   },
 
   onShow() {
@@ -154,6 +156,34 @@ Page({
 
   cancelCalendar() {
     wx.navigateTo({ url: '/pages/cancel-calendar/cancel-calendar' });
+  },
+
+  /** 备份到云端：覆盖式保存，照片不包含在备份中 */
+  backupToCloud() {
+    if (this.data.backingUp) return;
+    wx.showModal({
+      title: '备份到云端',
+      content: '将药品、医疗档案、用药记录与设置备份到云端，照片不会包含。确定备份吗？',
+      confirmText: '备份',
+      success: (res) => {
+        if (!res.confirm) return;
+        this.setData({ backingUp: true });
+        wx.showLoading({ title: '正在备份', mask: true });
+        backup.save().then(() => {
+          wx.hideLoading();
+          this.setData({ backingUp: false });
+          wx.showToast({ title: '已备份到云端', icon: 'success' });
+        }).catch((err) => {
+          wx.hideLoading();
+          this.setData({ backingUp: false });
+          wx.showModal({
+            title: '备份失败',
+            content: (err && err.message) || '请稍后重试',
+            showCancel: false
+          });
+        });
+      }
+    });
   },
 
   exportBackup() {

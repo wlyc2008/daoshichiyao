@@ -44,7 +44,9 @@
 
   <view class="group-title">数据与云服务</view>
   <view class="card">
-    <view class="entry" hover-class="tap-hover" bindtap="exportBackup">导出备份</view>
+    <view class="entry" hover-class="tap-hover" bindtap="backupToCloud">备份到云端</view>
+    <view class="entry" hover-class="tap-hover" data-url="/pages/restore/restore" bindtap="goPage">从云端恢复</view>
+    <view class="entry" hover-class="tap-hover" bindtap="exportBackup">导出备份到剪贴板</view>
     <view class="entry" hover-class="tap-hover" bindtap="checkCloud">检查云端状态</view>
   </view>
 

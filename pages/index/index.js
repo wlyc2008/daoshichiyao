@@ -606,6 +606,11 @@ Page({
     wx.navigateTo({ url: '/pages/settings/settings' });
   },
 
+  /** 换手机后从云端恢复备份 */
+  goRestore() {
+    wx.navigateTo({ url: '/pages/restore/restore' });
+  },
+
   /** 子女端查看长辈历史执行记录 */
   goCareHistory() {
     wx.navigateTo({ url: '/pages/care-history/care-history' });

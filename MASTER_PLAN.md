@@ -644,6 +644,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | Phase 4 | 已完成（2026-11-20） | 长辈端「已吃药」一键确认 → 写入 `med_logs`，子女端可看今日完成情况 |
 | Phase 5 | 已完成（2026-11-20） | 强力模式漏服 Watchdog → 反向通知子女；`med_logs` 记 `missed`；库存/复诊提醒；子女历史执行记录 |
 | Phase 6 | 已完成（2026-11-20） | 最近 7 天完成率统计：应服 / 已服 / 漏服 + 每天趋势 |
+| Phase 7 | 已完成（2026-11-20） | 云端备份与换机恢复：药品、档案、记录、设置；照片不包含 |
 
 ### 12.8 Phase 3 实现记录
 
@@ -767,5 +768,31 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 - 历史计划不可还原，过去几天也按当前有效计划估算；计划调整后周报会跟着变化
 - 已停用药品不计入应服，历史已服记录仍保留
 - 30 天月报暂未提供，后续可复用同一接口扩展 `days` 参数
+
+### 12.12 Phase 7 实现记录
+
+**备份接口 `backupData`**
+
+- 集合 `backups`，每个用户一条记录（按 `ownerId` 查找，重复备份覆盖）
+- `save`：只接收 `meds / docs / logs / mealTimes / routineTimes / settings / role`，单条上限 256KB
+- `info`：返回备份时间与药品 / 档案 / 记录数量
+- `load`：返回完整备份，供换机恢复
+- 未知字段直接丢弃，避免客户端误传大字段
+
+**客户端**
+
+- `utils/backup.js`：`collect / save / info / fetchBackup / apply / restore`
+  - 备份时清空 `photoPath`：照片是本机文件，无法跨设备恢复
+  - 恢复后清空 `planSignature / medPlanSignature / boundTargetId`，强制重新同步云端计划
+- 设置页「数据与云服务」新增：备份到云端、从云端恢复；原剪贴板导出保留为「导出备份到剪贴板」
+- 新页面 `pages/restore/restore`：展示备份时间与数量 → 二次确认 → 覆盖本机并 `reLaunch`
+- 身份选择页新增「换手机了？从云端恢复备份」，未选身份也能恢复
+
+**已知限制**
+
+- 照片与图片不随备份恢复，换机后需重新拍照
+- 备份为覆盖式，只保留最新一份；不提供历史版本
+- `med_logs`（云端服药记录）不包含在备份中，只备份本机 `DOSE_LOGS`
+- 恢复会覆盖本机数据，操作前有二次确认
 
 
