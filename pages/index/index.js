@@ -61,7 +61,6 @@ function monthDay(dateKey) {
 Page({
   data: {
     userRole: '',
-    roleLabel: '',
     today: '',
     hasMeds: false,
     medsList: [],
@@ -78,8 +77,6 @@ Page({
     due: null,
     icsExported: true,
     icsOutdated: false,
-    inviteCode: '',
-    inviteError: '',
     bound: false,
     boundText: ''
   },
@@ -88,20 +85,19 @@ Page({
     this.loadRole();
   },
 
-  /** 读取本地身份；未选择时停留在身份选择页 */
+  /**
+   * 身份不再由用户选择，而是由入口隐式决定：
+   * 直接打开小程序 = 管理者（子女）；点邀请完成绑定后 = 被照护者（长辈）
+   */
   loadRole() {
-    const current = role.getRole();
-    this.setData({
-      userRole: current,
-      roleLabel: role.roleText(current),
-      today: todayText()
-    });
+    const current = role.getRole() || 'caregiver';
+    this.setData({ userRole: current, today: todayText() });
     if (current === 'caregiver') {
       this.initApp();
     } else {
       this.stopTimer();
-      this.loadBindStatus();
     }
+    this.syncBindState();
   },
 
   initApp() {
@@ -110,88 +106,35 @@ Page({
     this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
-    this.loadInvite();
-    this.loadBindStatus();
   },
 
-  /** 预先生成关怀邀请，保证「发送给父母」能一步分享出去 */
-  loadInvite() {
-    if (this.data.inviteCode || this.inviteLoading) return;
-    this.inviteLoading = true;
-    bind.createInvite().then((res) => {
-      this.setData({ inviteCode: res.code, inviteError: '' });
-    }).catch(() => {
-      this.setData({ inviteError: '暂时无法生成邀请，请检查网络后重试' });
-    }).then(() => {
-      this.inviteLoading = false;
-    });
-  },
-
-  onRetryInvite() {
-    this.setData({ inviteError: '' });
-    this.loadInvite();
-  },
-
-  /** 复制邀请码，便于当面或电话告诉父母 */
-  onCopyCode() {
-    const code = this.data.inviteCode;
-    if (!code) return;
-    wx.setClipboardData({
-      data: code,
-      success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' })
-    });
-  },
-
-  /** 已绑定的长辈信息，用于告诉子女「提醒已经送达」 */
-  loadBindStatus() {
+  /** 用云端绑定状态校正本地：清缓存或换机后仍能回到正确的身份 */
+  syncBindState() {
     bind.fetchStatus().then((res) => {
       const profile = res.profile;
       const partner = res.partner;
-      if (profile && profile.linkedId && partner) {
+      if (!profile) return;
+
+      if (profile.role === 'caree' && this.data.userRole !== 'caree') {
+        role.cacheRole('caree');
+        this.setData({ userRole: 'caree' });
+        this.stopTimer();
+      }
+
+      if (profile.linkedId && partner) {
         this.setData({ bound: true, boundText: partner.nickname || '长辈' });
       }
     }).catch(() => {});
   },
 
-  /** 进入邀请码输入页，长辈可直接凭 6 位码完成绑定 */
+  /** 亲情提醒的分享、邀请码、解除绑定都收在二级页 */
+  goFamily() {
+    wx.navigateTo({ url: '/pages/family/family' });
+  },
+
+  /** 长辈端：凭邀请码完成绑定 */
   goBind() {
     wx.navigateTo({ url: '/pages/bind/bind' });
-  },
-
-  onShareAppMessage() {
-    const code = this.data.inviteCode;
-    return {
-      title: '家人给您设置好吃药提醒了，点开就能用',
-      path: code ? '/pages/bind/bind?code=' + code : '/pages/bind/bind'
-    };
-  },
-
-  onChooseRole(e) {
-    const next = e.currentTarget.dataset.role;
-    if (!role.roleText(next)) return;
-    role.setRole(next);
-    this.setData({ userRole: next, roleLabel: role.roleText(next) });
-    if (next === 'caregiver') this.initApp();
-  },
-
-  /** 顶部身份标签点按可切换，避免选错后无法回退 */
-  onSwitchRole() {
-    const isCaregiver = this.data.userRole === 'caregiver';
-    wx.showModal({
-      title: '切换身份',
-      content: isCaregiver ? '切换为「长辈」身份？首页将只保留提醒与确认。' : '切换为「子女」身份？可以管理父母的用药计划。',
-      confirmText: '切换',
-      confirmColor: '#2E7D32',
-      success: (res) => {
-        if (!res.confirm) return;
-        const next = isCaregiver ? 'caree' : 'caregiver';
-        role.setRole(next);
-        this.setData({ userRole: next, roleLabel: role.roleText(next) });
-        this.stopTimer();
-        this.setData({ due: null });
-        if (next === 'caregiver') this.initApp();
-      }
-    });
   },
 
   onHide() {

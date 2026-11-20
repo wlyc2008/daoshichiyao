@@ -28,8 +28,16 @@ function fetchStatus() {
   return cloud.callFunction('bindUser', { action: 'status' }).then((res) => (res.ok ? res : {}));
 }
 
+function unbind() {
+  return cloud.callFunction('bindUser', { action: 'unbind' }).then((res) => {
+    if (!res.ok) throw new Error(res.msg || '解除绑定失败');
+    return res;
+  });
+}
+
 module.exports = {
   createInvite,
   acceptInvite,
-  fetchStatus
+  fetchStatus,
+  unbind
 };

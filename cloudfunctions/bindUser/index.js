@@ -121,6 +121,21 @@ async function acceptInvite(openid, rawCode) {
   return { ok: true };
 }
 
+/** 解除绑定：双向清空 linkedId，双方都会回到未绑定状态 */
+async function unbind(openid) {
+  const user = await findUser(openid);
+  if (!user) return { ok: true };
+
+  if (user.linkedId) {
+    const partner = await findUser(user.linkedId);
+    if (partner && partner.linkedId === openid) {
+      await updateUser(partner, { linkedId: '' });
+    }
+  }
+  await updateUser(user, { linkedId: '' });
+  return { ok: true };
+}
+
 /** 读取自己的绑定状态，顺便带回对方的昵称（暂用 openid 后 4 位占位） */
 async function getStatus(openid) {
   const user = await findUser(openid);
@@ -146,5 +161,6 @@ exports.main = async (event) => {
   const action = event.action || 'status';
   if (action === 'create') return createInvite(OPENID);
   if (action === 'accept') return acceptInvite(OPENID, event.code);
+  if (action === 'unbind') return unbind(OPENID);
   return getStatus(OPENID);
 };

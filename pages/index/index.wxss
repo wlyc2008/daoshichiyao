@@ -73,19 +73,6 @@
   align-items: center;
 }
 
-/* 身份标签：可点按切换，弱化处理，不与「设置」抢视觉 */
-.hero-role {
-  height: 72rpx;
-  line-height: 72rpx;
-  padding: 0 20rpx;
-  margin-right: 16rpx;
-  box-sizing: border-box;
-  font-size: var(--font-xs);
-  color: var(--color-text-weak);
-  border-radius: var(--radius-pill);
-  background: var(--color-card);
-}
-
 .hero-settings {
   min-width: 140rpx;
   height: 88rpx;
@@ -245,78 +232,32 @@
   text-decoration: underline;
 }
 
-/* ========== 身份选择（2.0） ========== */
-.intro {
-  padding: 48rpx 8rpx 32rpx;
-}
-
-.intro-title {
-  font-size: var(--font-h1);
-  font-weight: bold;
-  letter-spacing: 2rpx;
-}
-
-.intro-sub {
-  margin-top: 16rpx;
-  font-size: var(--font-sm);
-  color: var(--color-text-weak);
-  line-height: 1.7;
-}
-
-.role-card {
-  padding: 28rpx 24rpx;
-  border: 2rpx solid var(--color-border);
-  border-radius: var(--radius-card);
-  margin-bottom: 20rpx;
-}
-
-.role-card:active {
-  background: var(--color-bg);
-  border-color: var(--color-primary);
-}
-
-.role-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.role-title {
-  font-size: var(--font-h2);
-  font-weight: bold;
-}
-
-.role-text {
-  margin-top: 12rpx;
-  font-size: var(--font-sm);
-  color: var(--color-text-weak);
-  line-height: 1.6;
-}
-
+/* ========== 长辈端等待绑定 ========== */
 .wait-hint {
   margin-top: 16rpx;
   color: var(--color-text-hint);
   font-size: var(--font-sm);
 }
 
-/* 邀请码：可点按复制，浅绿底与主操作区分 */
-.invite-code {
-  margin-top: 20rpx;
-  padding: 16rpx 0;
-  border-radius: var(--radius-sm);
-  background: var(--color-primary-light);
-  text-align: center;
-  font-size: var(--font-sm);
-  font-weight: bold;
-  color: var(--color-primary);
-  letter-spacing: 2rpx;
+/* ========== 亲情提醒入口条 ========== */
+.family-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-/* 副入口文字链接 */
-.entry-link {
-  text-align: center;
+.family-left {
+  flex: 1;
+  padding-right: 24rpx;
+}
+
+.family-name {
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.family-desc {
+  margin-top: 8rpx;
   font-size: var(--font-sm);
-  color: var(--color-primary);
-  text-decoration: underline;
-  padding: 16rpx 0;
+  color: var(--color-text-weak);
 }
