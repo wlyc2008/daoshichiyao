@@ -55,27 +55,28 @@ function fetchStatus() {
 }
 
 /**
+ * 通用云函数调用，未配置环境时统一返回 rejected，调用方只需 catch
+ */
+function callFunction(name, data) {
+  if (!init()) {
+    return Promise.reject(new Error('云开发未配置'));
+  }
+  return wx.cloud.callFunction({
+    name: name,
+    data: data || {}
+  }).then((res) => res.result || {});
+}
+
+/**
  * 登记 / 读取用户身份（users 集合）
  * @param {string} role 'caregiver' | 'caree'
  */
 function registerProfile(role) {
-  if (!init()) {
-    return Promise.reject(new Error('云开发未配置'));
-  }
-  return wx.cloud.callFunction({
-    name: 'userProfile',
-    data: { action: 'setRole', role: role }
-  }).then((res) => res.result || {});
+  return callFunction('userProfile', { action: 'setRole', role: role });
 }
 
 function fetchProfile() {
-  if (!init()) {
-    return Promise.reject(new Error('云开发未配置'));
-  }
-  return wx.cloud.callFunction({
-    name: 'userProfile',
-    data: { action: 'get' }
-  }).then((res) => res.result || {});
+  return callFunction('userProfile', { action: 'get' });
 }
 
 module.exports = {
@@ -83,6 +84,7 @@ module.exports = {
   isEnabled: isEnabled,
   syncPlan: syncPlan,
   fetchStatus: fetchStatus,
+  callFunction: callFunction,
   registerProfile: registerProfile,
   fetchProfile: fetchProfile
 };

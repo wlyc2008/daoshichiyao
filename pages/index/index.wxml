@@ -38,7 +38,12 @@
       </view>
     </view>
 
-    <view class="card">
+    <view wx:if="{{bound}}" class="card">
+      <view class="section-title">已开启家人的提醒</view>
+      <view class="empty-text">到时间微信会提醒您吃药，吃完按一下「已吃药」就好。</view>
+    </view>
+
+    <view wx:else class="card">
       <view class="section-title">等待家人的提醒</view>
       <view class="empty-text">请让子女在小程序里点击「发送给父母」，把提醒卡片转发到您的微信。</view>
       <view class="empty-text wait-hint">收到卡片后点开即可完成绑定，之后到点会自动提醒您吃药。</view>
@@ -63,6 +68,20 @@
         <view class="hero-role" hover-class="tap-hover" bindtap="onSwitchRole">{{roleLabel}} · 切换</view>
         <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
       </view>
+    </view>
+
+    <!-- 邀请父母：未绑定显示分享入口，已绑定显示状态 -->
+    <view wx:if="{{!bound}}" class="card">
+      <view class="section-title">把提醒发给父母</view>
+      <view class="empty-text">父母点开您分享的卡片，确认一次就能开始接收提醒，不用自己设置。</view>
+      <button wx:if="{{inviteCode}}" class="btn-primary" open-type="share">发送给父母</button>
+      <view wx:elif="{{inviteError}}" class="wait-hint danger-text" bindtap="onRetryInvite">{{inviteError}}，点此重试</view>
+      <view wx:else class="wait-hint">正在准备邀请…</view>
+    </view>
+
+    <view wx:else class="card">
+      <view class="section-title">已和{{boundText}}绑定</view>
+      <view class="empty-text">长辈已接受邀请，到点会自动收到微信提醒。</view>
     </view>
 
     <!-- 上块：用药清单 -->

@@ -1,6 +1,7 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/bind/bind",
     "pages/med-edit/med-edit",
     "pages/meal-times/meal-times",
     "pages/routine-times/routine-times",

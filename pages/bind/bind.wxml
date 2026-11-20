@@ -1,0 +1,40 @@
+<view class="page">
+  <block wx:if="{{state === 'ready'}}">
+    <view class="intro">
+      <view class="intro-title">家人为您开启了<br />用药提醒</view>
+      <view class="intro-sub">点一次确认，之后到时间微信会提醒您吃药。</view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">确认后您将获得</view>
+      <view class="benefit">· 到点微信提醒，手机响铃</view>
+      <view class="benefit">· 吃完了按一下「已吃药」就行</view>
+      <view class="benefit">· 不用自己设置任何时间</view>
+
+      <button class="btn-primary" bindtap="onConfirm" disabled="{{submitting}}">
+        {{submitting ? '正在开启…' : '确认开启提醒'}}
+      </button>
+      <view class="privacy">开启时需要允许接收一次微信通知</view>
+    </view>
+  </block>
+
+  <block wx:elif="{{state === 'done'}}">
+    <view class="intro">
+      <view class="intro-title">已开启</view>
+      <view class="intro-sub">家人已收到通知。到时间微信会提醒您，记得按「已吃药」。</view>
+    </view>
+    <view class="card">
+      <button class="btn-primary" bindtap="goHome">知道了</button>
+    </view>
+  </block>
+
+  <block wx:else>
+    <view class="intro">
+      <view class="intro-title">{{state === 'loading' ? '正在打开…' : '无法开启'}}</view>
+      <view class="intro-sub">{{errorText || '请稍候'}}</view>
+    </view>
+    <view class="card">
+      <button class="btn-secondary" bindtap="goHome">返回首页</button>
+    </view>
+  </block>
+</view>

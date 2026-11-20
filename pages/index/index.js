@@ -6,6 +6,7 @@ const ics = require('../../utils/ics');
 const medSchedule = require('../../utils/medSchedule');
 const planSync = require('../../utils/planSync');
 const role = require('../../utils/role');
+const bind = require('../../utils/bind');
 
 const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -76,7 +77,11 @@ Page({
     hours: [],
     due: null,
     icsExported: true,
-    icsOutdated: false
+    icsOutdated: false,
+    inviteCode: '',
+    inviteError: '',
+    bound: false,
+    boundText: ''
   },
 
   onShow() {
@@ -95,6 +100,7 @@ Page({
       this.initApp();
     } else {
       this.stopTimer();
+      this.loadBindStatus();
     }
   },
 
@@ -104,6 +110,45 @@ Page({
     this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
+    this.loadInvite();
+    this.loadBindStatus();
+  },
+
+  /** 预先生成关怀邀请，保证「发送给父母」能一步分享出去 */
+  loadInvite() {
+    if (this.data.inviteCode || this.inviteLoading) return;
+    this.inviteLoading = true;
+    bind.createInvite().then((res) => {
+      this.setData({ inviteCode: res.code, inviteError: '' });
+    }).catch(() => {
+      this.setData({ inviteError: '暂时无法生成邀请，请检查网络后重试' });
+    }).then(() => {
+      this.inviteLoading = false;
+    });
+  },
+
+  onRetryInvite() {
+    this.setData({ inviteError: '' });
+    this.loadInvite();
+  },
+
+  /** 已绑定的长辈信息，用于告诉子女「提醒已经送达」 */
+  loadBindStatus() {
+    bind.fetchStatus().then((res) => {
+      const profile = res.profile;
+      const partner = res.partner;
+      if (profile && profile.linkedId && partner) {
+        this.setData({ bound: true, boundText: partner.nickname || '长辈' });
+      }
+    }).catch(() => {});
+  },
+
+  onShareAppMessage() {
+    const code = this.data.inviteCode;
+    return {
+      title: '家人给您设置好吃药提醒了，点开就能用',
+      path: code ? '/pages/bind/bind?code=' + code : '/pages/bind/bind'
+    };
   },
 
   onChooseRole(e) {

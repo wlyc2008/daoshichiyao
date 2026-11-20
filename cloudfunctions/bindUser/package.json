@@ -1,0 +1,9 @@
+{
+  "name": "bindUser",
+  "version": "2.0.0",
+  "description": "生成关怀邀请码并完成子女与长辈的绑定",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

@@ -1,0 +1,23 @@
+.intro {
+  padding: 64rpx 8rpx 40rpx;
+}
+
+.intro-title {
+  font-size: var(--font-h1);
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+.intro-sub {
+  margin-top: 20rpx;
+  font-size: var(--font-body);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+/* 权益说明：一行一条，保持大字号兜底 */
+.benefit {
+  font-size: var(--font-body);
+  color: var(--color-text);
+  line-height: 1.9;
+}
