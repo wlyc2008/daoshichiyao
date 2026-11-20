@@ -609,5 +609,10 @@ Page({
   /** 子女端查看长辈历史执行记录 */
   goCareHistory() {
     wx.navigateTo({ url: '/pages/care-history/care-history' });
+  },
+
+  /** 子女端查看最近 7 天完成率统计 */
+  goCareStats() {
+    wx.navigateTo({ url: '/pages/care-stats/care-stats' });
   }
 });

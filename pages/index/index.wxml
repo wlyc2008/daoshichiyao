@@ -169,7 +169,10 @@
         </view>
       </block>
 
-      <view class="history-link" hover-class="tap-hover" bindtap="goCareHistory">查看历史记录</view>
+      <view class="care-links">
+        <view class="history-link" hover-class="tap-hover" bindtap="goCareStats">本周统计</view>
+        <view class="history-link" hover-class="tap-hover" bindtap="goCareHistory">查看历史记录</view>
+      </view>
     </view>
 
     <!-- 上块：用药清单 -->

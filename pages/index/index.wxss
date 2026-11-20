@@ -461,11 +461,15 @@
   margin-top: 8rpx;
 }
 
-/* 历史记录入口：卡片底部右对齐 */
-.history-link {
+/* 历史记录 / 周报入口：卡片底部两端对齐 */
+.care-links {
+  display: flex;
+  justify-content: space-between;
   margin-top: 20rpx;
+}
+
+.history-link {
   padding: 12rpx 0 4rpx;
-  text-align: right;
   font-size: var(--font-sm);
   color: var(--color-primary);
   text-decoration: underline;

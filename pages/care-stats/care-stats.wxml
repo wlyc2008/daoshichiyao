@@ -1,0 +1,53 @@
+<view class="page">
+  <view wx:if="{{!loaded}}" class="card">
+    <view class="empty-text">正在统计…</view>
+  </view>
+
+  <view wx:elif="{{!bound}}" class="card">
+    <view class="empty-text">还没有绑定家人，暂时没有统计。</view>
+  </view>
+
+  <view wx:elif="{{expected === 0}}" class="card">
+    <view class="empty-text">最近 7 天没有用药安排。</view>
+  </view>
+
+  <block wx:else>
+    <view class="card stats-hero">
+      <view class="rate-value">{{rate}}%</view>
+      <view class="rate-label">最近 7 天完成率</view>
+
+      <view class="stats-row">
+        <view class="stat">
+          <view class="stat-num">{{expected}}</view>
+          <view class="stat-name">应服次数</view>
+        </view>
+        <view class="stat">
+          <view class="stat-num done">{{taken}}</view>
+          <view class="stat-name">已服次数</view>
+        </view>
+        <view class="stat">
+          <view class="stat-num {{missed ? 'danger-text' : ''}}">{{missed}}</view>
+          <view class="stat-name">漏服次数</view>
+        </view>
+      </view>
+
+      <view wx:if="{{alerted}}" class="stats-hint">其中 {{alerted}} 次超过 30 分钟未确认，已通知您</view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">每天完成情况</view>
+      <view wx:for="{{daily}}" wx:key="dateKey" class="day-row">
+        <view class="day-label">
+          <view class="day-week">{{item.isToday ? '今天' : item.week}}</view>
+          <view class="day-date">{{item.label}}</view>
+        </view>
+        <view class="day-bar">
+          <view class="day-fill {{item.rateClass}}" style="width: {{item.rate}}%"></view>
+        </view>
+        <view class="day-count">{{item.taken}}/{{item.expected}}</view>
+      </view>
+    </view>
+
+    <view class="privacy">按当前用药计划估算；计划调整后，之前几天也按最新计划计算</view>
+  </block>
+</view>

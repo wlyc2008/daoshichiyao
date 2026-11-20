@@ -12,6 +12,7 @@
     "pages/med-manage/med-manage",
     "pages/logs/logs",
     "pages/care-history/care-history",
+    "pages/care-stats/care-stats",
     "pages/settings/settings"
   ],
   "window": {

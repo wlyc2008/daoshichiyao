@@ -2,10 +2,15 @@ const cloud = require('wx-server-sdk');
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
 const db = cloud.database();
+const _ = db.command;
 
 const PLANS = 'med_plans';
 const LOGS = 'med_logs';
 const USERS = 'users';
+
+// 周报统计范围：最近 7 天（含今天）
+const STATS_DAYS = 7;
+const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
 
 function pad(value) {
   return value < 10 ? '0' + value : String(value);
@@ -38,6 +43,22 @@ function dayNumber(dateKey) {
   const matched = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateKey || ''));
   if (!matched) return null;
   return Date.UTC(Number(matched[1]), Number(matched[2]) - 1, Number(matched[3])) / 86400000;
+}
+
+/** 天数序号转回日期键 */
+function dateKeyFromDayNumber(num) {
+  const d = new Date(num * 86400000);
+  return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+}
+
+/** HH:mm 转当天分钟数，非法值返回 -1 */
+function minutesOf(time) {
+  const matched = /^(\d{1,2}):(\d{2})$/.exec(String(time || ''));
+  if (!matched) return -1;
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (hour > 23 || minute > 59) return -1;
+  return hour * 60 + minute;
 }
 
 /** 库存不足 3 天或 7 天内复诊时给子女的提示 */
@@ -267,6 +288,100 @@ async function confirmDose(openid, event) {
   return { ok: true, log: log };
 }
 
+/**
+ * 周报统计：最近 7 天（含今天）的应服 / 已服 / 漏服与每天趋势
+ * 应服次数按当前有效计划估算，今天的未来时刻不计入
+ */
+async function getStats(openid) {
+  const user = await findUser(openid);
+  if (!user || !user.linkedId) {
+    return {
+      ok: true, bound: false, days: STATS_DAYS,
+      expected: 0, taken: 0, missed: 0, alerted: 0, rate: 0, daily: []
+    };
+  }
+
+  const isCaree = user.role === 'caree';
+  const ownerId = isCaree ? user.linkedId : openid;
+  const now = new Date(Date.now() + 8 * 3600 * 1000);
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const todayNum = dayNumber(beijingDateKey());
+  const startNum = todayNum - (STATS_DAYS - 1);
+  const startKey = dateKeyFromDayNumber(startNum);
+
+  let plans;
+  let logs;
+  try {
+    plans = await db.collection(PLANS).where({ ownerId: ownerId, status: 'active' }).limit(100).get();
+    logs = await db.collection(LOGS).where({
+      ownerId: ownerId,
+      dateKey: _.gte(startKey)
+    }).limit(500).get();
+  } catch (err) {
+    return {
+      ok: true, bound: true, days: STATS_DAYS,
+      expected: 0, taken: 0, missed: 0, alerted: 0, rate: 0, daily: []
+    };
+  }
+
+  const takenByDay = {};
+  const alertedByDay = {};
+  logs.data.forEach((log) => {
+    if (log.status === 'taken') {
+      takenByDay[log.dateKey] = (takenByDay[log.dateKey] || 0) + 1;
+    } else if (log.status === 'missed') {
+      alertedByDay[log.dateKey] = (alertedByDay[log.dateKey] || 0) + 1;
+    }
+  });
+
+  const daily = [];
+  let expectedTotal = 0;
+  let takenTotal = 0;
+  let alertedTotal = 0;
+
+  for (let num = startNum; num <= todayNum; num += 1) {
+    const dateKey = dateKeyFromDayNumber(num);
+    let expected = 0;
+    plans.data.forEach((plan) => {
+      (plan.schedule || []).forEach((time) => {
+        // 今天的未来时刻还没到，不计入应服
+        if (num === todayNum && minutesOf(time) > nowMinutes) return;
+        expected += 1;
+      });
+    });
+
+    const taken = takenByDay[dateKey] || 0;
+    const alerted = alertedByDay[dateKey] || 0;
+    const d = new Date(num * 86400000);
+
+    expectedTotal += expected;
+    takenTotal += taken;
+    alertedTotal += alerted;
+
+    daily.push({
+      dateKey: dateKey,
+      label: (d.getUTCMonth() + 1) + '/' + d.getUTCDate(),
+      week: '周' + WEEK_TEXT[d.getUTCDay()],
+      isToday: num === todayNum,
+      expected: expected,
+      taken: taken,
+      rate: expected > 0 ? Math.min(100, Math.round((taken / expected) * 100)) : 0
+    });
+  }
+
+  return {
+    ok: true,
+    bound: true,
+    days: STATS_DAYS,
+    expected: expectedTotal,
+    taken: takenTotal,
+    missed: Math.max(0, expectedTotal - takenTotal),
+    alerted: alertedTotal,
+    rate: expectedTotal > 0 ? Math.min(100, Math.round((takenTotal / expectedTotal) * 100)) : 0,
+    daily: daily
+  };
+}
+
 exports.main = async (event = {}) => {
   const { OPENID } = cloud.getWXContext();
   if (!OPENID) return { ok: false, msg: '缺少用户标识' };
@@ -275,5 +390,6 @@ exports.main = async (event = {}) => {
 
   if (event.action === 'confirm') return confirmDose(OPENID, event);
   if (event.action === 'history') return getHistory(OPENID, event.dateKey);
+  if (event.action === 'stats') return getStats(OPENID);
   return getToday(OPENID);
 };

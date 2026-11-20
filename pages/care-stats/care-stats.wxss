@@ -1,0 +1,105 @@
+.stats-hero {
+  text-align: center;
+}
+
+.rate-value {
+  font-size: 88rpx;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--color-primary);
+}
+
+.rate-label {
+  margin-top: 4rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+}
+
+.stats-row {
+  display: flex;
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx solid var(--color-border);
+}
+
+.stat {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: var(--font-h1);
+  font-weight: bold;
+}
+
+.stat-num.done {
+  color: var(--color-primary);
+}
+
+.stat-name {
+  margin-top: 4rpx;
+  font-size: var(--font-xs);
+  color: var(--color-text-weak);
+}
+
+.stats-hint {
+  margin-top: 20rpx;
+  font-size: var(--font-xs);
+  color: var(--color-warn);
+}
+
+/* 每天一行：日期 + 完成率条 + 次数 */
+.day-row {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 0;
+}
+
+.day-label {
+  width: 120rpx;
+  flex-shrink: 0;
+}
+
+.day-week {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+}
+
+.day-date {
+  font-size: var(--font-xs);
+  color: var(--color-text-hint);
+}
+
+.day-bar {
+  flex: 1;
+  height: 24rpx;
+  margin: 0 20rpx;
+  border-radius: var(--radius-pill);
+  background: var(--color-placeholder);
+  overflow: hidden;
+}
+
+.day-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+}
+
+.bar-done {
+  background: var(--color-primary);
+}
+
+.bar-warn {
+  background: var(--color-warn);
+}
+
+.bar-danger {
+  background: var(--color-danger);
+}
+
+.day-count {
+  width: 100rpx;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+}

@@ -34,8 +34,17 @@ function fetchHistory(dateKey) {
   });
 }
 
+/** 最近 7 天完成率统计（子女看长辈，长辈看自己） */
+function fetchStats() {
+  return cloud.callFunction('medLog', { action: 'stats' }).then((res) => {
+    if (res && res.ok === false) throw new Error(res.msg || '读取统计失败');
+    return res || {};
+  });
+}
+
 module.exports = {
   fetchToday,
   confirm,
-  fetchHistory
+  fetchHistory,
+  fetchStats
 };
