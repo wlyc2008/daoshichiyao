@@ -117,6 +117,8 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
 
   const notifyState = normalizeNotifyState(rawNotifyState);
   const now = Date.now();
+  // 订阅消息一次授权只允许发送一条，用 quota 记录可用条数
+  const quota = notifyState === 'accept' ? 1 : 0;
 
   const caree = await findUser(openid);
   if (caree) {
@@ -126,7 +128,8 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
       boundAt: now,
       notifyState: notifyState,
       notifyAt: now,
-      notifyPaused: false
+      notifyPaused: false,
+      quota: quota
     });
   } else {
     await db.collection(USERS).add({
@@ -140,7 +143,8 @@ async function acceptInvite(openid, rawCode, rawNotifyState) {
         boundAt: now,
         notifyState: notifyState,
         notifyAt: now,
-        notifyPaused: false
+        notifyPaused: false,
+        quota: quota
       }
     });
   }
@@ -173,11 +177,14 @@ async function resumeNotify(openid, rawNotifyState) {
   if (!user) return { ok: false, msg: '用户不存在' };
   if (!user.linkedId) return { ok: false, msg: '尚未绑定家人，请先输入邀请码' };
 
-  await updateUser(user, {
+  const patch = {
     notifyPaused: false,
     notifyState: normalizeNotifyState(rawNotifyState),
     notifyAt: Date.now()
-  });
+  };
+  // 本次授权成功则新增一条可发送额度；拒绝时保留原额度不动
+  if (patch.notifyState === 'accept') patch.quota = _.inc(1);
+  await updateUser(user, patch);
   return { ok: true };
 }
 

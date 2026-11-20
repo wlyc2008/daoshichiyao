@@ -1,0 +1,9 @@
+{
+  "name": "syncMedPlans",
+  "version": "2.0.0",
+  "description": "同步子女登记的药品计划到 med_plans，供 sendDue 按 targetId 推送",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

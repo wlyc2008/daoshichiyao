@@ -636,12 +636,44 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 4. **暂停只影响推送**：`notifyPaused = true` 时后续 `sendDue` 跳过该用户，绑定关系与用药数据保留。
 5. **绑定需双账号验证**：开发者工具单账号无法闭环，需多账号调试或真机。
 
-### 12.7 待实现（Phase 3–5）
+### 12.7 阶段进度
 
-| 阶段 | 内容 |
+| 阶段 | 状态 | 内容 |
+| :-- | :-- | :-- |
+| Phase 3 | 已完成（2026-11-20） | 药品计划上云（`med_plans` + 提醒强度 柔和/标准/强力），`sendDue` 按 targetId 推给长辈，并跳过 `notifyPaused = true` 的用户 |
+| Phase 4 | 待实现 | 长辈端「已吃药」一键确认 → 写入 `med_logs` |
+| Phase 5 | 待实现 | Watchdog 定时检测漏服 → 反向通知子女；库存与复诊提醒 |
+
+### 12.8 Phase 3 实现记录
+
+**药品计划 `med_plans`**
+
+| 字段 | 说明 |
 | :-- | :-- |
-| Phase 3 | 药品计划上云（`med_plans` + 提醒强度 柔和/标准/强力），`sendDue` 按 `target_id` 推给长辈，并跳过 `notifyPaused = true` 的用户 |
-| Phase 4 | 长辈端「已吃药」一键确认 → 写入 `med_logs` |
-| Phase 5 | Watchdog 定时检测漏服 → 反向通知子女；库存与复诊提醒 |
+| `ownerId` | 子女 openid（写入者） |
+| `targetId` | 长辈 openid，同步时取 `users.linkedId`；未绑定时为空 |
+| `medId` / `medName` / `dose` / `unit` | 药品标识与每次剂量 |
+| `intensity` | `gentle` / `standard` / `strong` |
+| `schedule` / `timeKeys` | 每日提醒时刻，如 `['08:00','20:00']` |
+| `stock` / `nextVisit` | 剩余库存、最近一次未来复诊日期 |
+| `status` | `active` / `stopped`（停用药品保留计划但不再推送） |
+
+**提醒强度**
+
+| 强度 | 行为 |
+| :-- | :-- |
+| 柔和 | 仅一条微信订阅消息，不做催促文案 |
+| 标准 | 微信订阅消息（默认） |
+| 强力 | 消息文案前缀「【重要】」「请立即服用」；30 分钟未确认反查家人留待 Phase 5 |
+
+**同步与推送**
+
+- 本地 `utils/planSync.js` 同时维护两个指纹：V1 `planSignature`（`reminder_plans`）与 `medPlanSignature`（`med_plans`），任一变化才调云函数
+- 新增云函数 `syncMedPlans`：按 `ownerId + medId` upsert，本地删除的药品同步删除云端计划；每次同步刷新 `targetId`
+- `sendDue` 保留 V1 `reminder_plans` 逻辑，并行新增 `med_plans` 推送：
+  - 以 `ownerId` 当前 `linkedId` 解析 targetId，解绑/换绑后立即停止
+  - 跳过 `notifyPaused = true`、关系失效、额度为 0 的长辈
+  - 同一时刻多种药合并为一条消息
+- 额度 `users.quota`：长辈 `accept` / `resume`（授权成功）+1，推送成功 -1，43101 清零
 
 

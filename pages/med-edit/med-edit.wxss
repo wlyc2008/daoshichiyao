@@ -99,6 +99,10 @@
   margin-top: 8rpx;
 }
 
+.intensity-hint {
+  margin-top: 16rpx;
+}
+
 .photo {
   width: 100%;
   height: 360rpx;

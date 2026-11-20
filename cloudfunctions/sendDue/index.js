@@ -5,6 +5,8 @@ const db = cloud.database();
 const _ = db.command;
 
 const COLLECTION = 'reminder_plans';
+const MED_PLANS = 'med_plans';
+const USERS = 'users';
 const HEARTBEAT = 'heartbeat';
 const TEMPLATE_ID = 'CTeOMRptscUEp21jFiUKz3drmBP9YxioGNdgAKlTX-I';
 
@@ -47,6 +49,112 @@ async function writeHeartbeat(payload) {
   }
 }
 
+function truncate(text, max) {
+  const value = String(text || '');
+  return value.length > max ? value.slice(0, max) : value;
+}
+
+async function findUser(openid) {
+  const found = await db.collection(USERS).where({ openid: openid }).limit(1).get();
+  return found.data.length ? found.data[0] : null;
+}
+
+/**
+ * Phase 3：把子女登记的药品计划推给长辈
+ * 以 owner 当前的 linkedId 作为 targetId，解绑/换绑后立即停止；
+ * 跳过暂停接收、关系失效、授权额度耗尽的用户
+ */
+async function sendCarePlans(timeKey, timeText) {
+  let found;
+  try {
+    found = await db.collection(MED_PLANS)
+      .where({ timeKeys: timeKey, status: 'active' })
+      .limit(100)
+      .get();
+  } catch (err) {
+    // 集合尚未创建时跳过
+    return { matched: 0, sent: 0 };
+  }
+
+  // 同一子女在同一时刻的多种药合并为一条消息
+  const groups = {};
+  found.data.forEach((plan) => {
+    if (!plan.ownerId) return;
+    groups[plan.ownerId] = groups[plan.ownerId] || [];
+    groups[plan.ownerId].push(plan);
+  });
+
+  const userCache = {};
+  async function cachedUser(openid) {
+    if (!openid) return null;
+    if (!userCache[openid]) userCache[openid] = await findUser(openid);
+    return userCache[openid];
+  }
+
+  let matched = 0;
+  let sent = 0;
+
+  async function sendGroup(ownerId) {
+    const owner = await cachedUser(ownerId);
+    const targetId = owner && owner.linkedId ? owner.linkedId : '';
+    if (!targetId) return;
+
+    const target = await cachedUser(targetId);
+    if (!target || target.role !== 'caree') return;
+    if (target.notifyPaused) return;
+    if (!target.linkedId || target.linkedId !== ownerId) return;
+    if ((Number(target.quota) || 0) <= 0) return;
+
+    matched += 1;
+
+    const plans = groups[ownerId];
+    const names = [];
+    const doses = [];
+    let strong = false;
+
+    plans.forEach((plan) => {
+      if (names.indexOf(plan.medName) === -1) names.push(plan.medName);
+      const doseText = plan.dose + (plan.unit || '片');
+      if (doses.indexOf(doseText) === -1) doses.push(doseText);
+      if (plan.intensity === 'strong') strong = true;
+    });
+
+    try {
+      await cloud.openapi.subscribeMessage.send({
+        touser: targetId,
+        templateId: TEMPLATE_ID,
+        page: PAGE,
+        miniprogramState: MINIPROGRAM_STATE,
+        lang: 'zh_CN',
+        data: {
+          thing5: { value: truncate((strong ? '【重要】' : '') + names.join('、'), 20) },
+          time1: { value: timeText },
+          short_thing7: { value: truncate(doses.join('、') + (strong ? '，请立即服用' : ''), 20) }
+        }
+      });
+
+      await db.collection(USERS).doc(target._id).update({
+        data: { quota: _.inc(-1), lastNotifyAt: Date.now() }
+      });
+      sent += 1;
+    } catch (err) {
+      // 43101：长辈未订阅或授权已耗尽，清零避免反复无效调用
+      if (err && String(err.errCode) === '43101') {
+        await db.collection(USERS).doc(target._id).update({ data: { quota: 0 } });
+      }
+    }
+  }
+
+  const ownerIds = Object.keys(groups);
+  const CONCURRENCY = 20;
+  for (let i = 0; i < ownerIds.length; i += CONCURRENCY) {
+    // 单个账号读库失败不能影响其他长辈，也不能拖垮 V1 推送
+    await Promise.all(ownerIds.slice(i, i + CONCURRENCY).map((ownerId) => sendGroup(ownerId).catch(() => {})));
+  }
+
+  return { matched: matched, sent: sent };
+}
+
 /**
  * 定时触发：每分钟检查一次，命中计划时刻且有授权次数的用户发送订阅消息
  * 客户端可用 { action: 'status' } 调用，读取最近一次执行时间
@@ -86,6 +194,9 @@ exports.main = async (event = {}) => {
     });
   }
 
+  // 长辈端计划与 V1 计划互不影响，并行发送以压缩总耗时
+  const careTask = sendCarePlans(timeKey, timeText);
+
   let matched;
   try {
     matched = await db.collection(COLLECTION)
@@ -93,8 +204,9 @@ exports.main = async (event = {}) => {
       .limit(100)
       .get();
   } catch (err) {
-    // 集合尚未创建时直接跳过
-    return { timeKey, matched: 0, sent: 0 };
+    // 集合尚未创建时，V1 计划为空，但长辈计划仍要推送
+    const care = await careTask.catch(() => ({ matched: 0, sent: 0 }));
+    return { timeKey, matched: 0, sent: 0, care: care };
   }
 
   /** 发送单个用户的提醒，成功返回 1，失败返回 0 */
@@ -141,5 +253,7 @@ exports.main = async (event = {}) => {
     results.forEach((count) => { sent += count; });
   }
 
-  return { timeKey, matched: matched.data.length, sent };
+  const care = await careTask.catch(() => ({ matched: 0, sent: 0 }));
+
+  return { timeKey, matched: matched.data.length, sent, care: care };
 };

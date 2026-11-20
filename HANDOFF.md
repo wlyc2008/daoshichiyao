@@ -6,7 +6,7 @@
 
 ## 1. 现状一句话
 
-V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**与**亲情绑定全链路**，下一步是**药品计划上云与推送**。
+V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定全链路**与 **Phase 3 药品计划上云 + 按 targetId 推送**，下一步是 **Phase 4 服药确认**。
 
 ---
 
@@ -18,7 +18,7 @@ V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正�
 | 1.0 基线 | `ef92c92`，tag `v1.0.0`，分支 `master` |
 | 1.0 物理快照 | `c:\Users\Administrator\Documents\Trae-CN\wx-v1.0-frozen`（独立可运行，勿改动） |
 | 最近提交 | `6aca784` 绑定操作归入设置页，支持通知授权状态与暂停恢复 |
-| **未提交** | `bindUser/index.js`、`pages/bind/bind.js`、`pages/bind/bind.wxml`、`utils/bind.js`（peek 防死循环修复，已部署但未 commit） |
+| **未提交** | Phase 3 全部改动：`utils/planSync.js`、`utils/storage.js`、`pages/med-edit/*`、`cloudfunctions/syncMedPlans`、`cloudfunctions/sendDue`、`cloudfunctions/bindUser` |
 
 常用命令：
 
@@ -57,6 +57,11 @@ git diff v1.0.0 v2.0
 3. **通知授权状态**：读取 `wx.requestSubscribeMessage` 返回值 → `accept/reject/ban/filter` 落库 → 两端都能看到
 4. **暂停/恢复接收**：保留绑定只停推送，`notifyPaused` 字段
 5. **防死循环**：`bindUser.peek` 提前校验，子女点「查看分享页」直接进静态说明页
+6. **药品计划上云（Phase 3）**：
+   - 药品编辑页新增「提醒强度」：柔和 / 标准 / 强力
+   - `utils/planSync.js` 用 `medPlanSignature` 判断变化，只有改动时才调 `syncMedPlans` 写 `med_plans`
+   - `sendDue` 保留 V1 逻辑，并行按 targetId 推给长辈：跳过暂停、解绑、额度耗尽
+   - 长辈授权额度落在 `users.quota`：`accept` / `resume` +1，发送成功 -1
 
 ---
 
@@ -70,8 +75,10 @@ git diff v1.0.0 v2.0
 | `utils/bind.js` | 绑定接口封装：`createInvite / peek / acceptInvite / pause / resume / unbind / fetchStatus` |
 | `utils/role.js` | 身份读写（本地 + 云端登记） |
 | `utils/cloud.js` | 云开发封装，含通用 `callFunction` |
-| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / unbind` |
-| `cloudfunctions/sendDue/index.js` | 定时推送（V1 逻辑，Phase 3 需改造） |
+| `utils/planSync.js` | 计划上云：V1 `reminder_plans` + V2 `med_plans` 双指纹同步 |
+| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / unbind`，并维护长辈 `quota` |
+| `cloudfunctions/syncMedPlans/index.js` | 按 `ownerId + medId` upsert `med_plans`，删除本地已移除的计划 |
+| `cloudfunctions/sendDue/index.js` | 定时推送：V1 计划 + `med_plans` 按 targetId 推给长辈 |
 | `MASTER_PLAN.md` | 第 12 章已记录 v2.0 交互逻辑，改完逻辑记得同步 |
 
 ---
@@ -84,9 +91,10 @@ git diff v1.0.0 v2.0
 
 | 集合 | 关键字段 |
 | :-- | :-- |
-| `users` | `openid / role / linkedId / boundAt / notifyState / notifyAt / notifyPaused` |
+| `users` | `openid / role / linkedId / boundAt / notifyState / notifyAt / notifyPaused / quota` |
 | `invites` | `code / caregiverOpenId / used / usedBy / expireAt` |
-| `reminder_plans` | V1 的计划集合（Phase 3 需要与 `med_plans` 关系梳理） |
+| `reminder_plans` | V1 自提醒计划（未绑定也能用） |
+| `med_plans` | `ownerId / targetId / medId / medName / dose / unit / intensity / schedule / stock / nextVisit / status` |
 
 部署命令（已验证可用）：
 
@@ -124,33 +132,25 @@ git diff v1.0.0 v2.0
 
 ---
 
-## 9. 下一步：Phase 3（药品计划上云 + 推送）
+## 9. 下一步：Phase 4（长辈端服药确认）
 
-### 目标
-子女登记的药品变成云端计划，`sendDue` 按 `target_id` 推给长辈，并跳过已暂停用户。
+Phase 3 已完成并验证：药品计划上云（`med_plans`）、提醒强度、`sendDue` 按 targetId 推送。
+
+### Phase 4 目标
+长辈收到提醒后点「已吃药」，结果写 `med_logs`，子女端能看到执行情况。
 
 ### 任务清单
-1. 新建 `med_plans` 集合：`ownerId / targetId / medName / dosage / intensity(gentle|standard|strong) / schedule[] / stock / nextVisit / status`
-2. 药品编辑页增加「提醒强度」选择（柔和/标准/强力），语义见下
-3. 保存时写入云端（沿用 `planSync` 的签名机制，避免重复写）
-4. 改造 `sendDue`：
-   - 按 `targetId` 查找长辈 openid
-   - 跳过 `notifyPaused = true`
-   - 按 `intensity` 决定消息文案/优先级
-5. 长辈端「已吃药」确认 → 写 `med_logs`（Phase 4）
-6. Watchdog：强力模式超时未确认 → 反向通知子女（Phase 5）
-
-### 强度语义
-| 强度 | 行为 |
-| :-- | :-- |
-| 柔和 | 仅微信订阅消息 |
-| 标准 | 微信消息 + 可导出 `.ics` |
-| 强力 | 微信消息 + 30 分钟未确认则通知子女 |
+1. 新建 `med_logs` 集合：`planId / ownerId / targetId / medName / plannedTime / confirmedAt / status(taken|missed|snoozed)`
+2. 长辈首页展示家人为自己设置的今日用药清单（按 targetId 读取 `med_plans`）
+3. 点「已吃药」→ 写 `med_logs` + 扣减计划库存
+4. 子女端首页展示长辈今日完成情况（只读）
+5. Watchdog：强力模式 30 分钟未确认 → 反向通知子女（Phase 5）
 
 ### 注意
 - 不要破坏 V1 的 `reminder_plans`，做增量
-- 云函数超时 3 秒，批量发送需并发分批（V1 已用每批 20）
+- 云函数超时 3 秒，批量发送需并发分批（V1/Phase 3 已用每批 20）
 - 改完同步更新 `MASTER_PLAN.md` 第 12 章
+- Phase 3 新增云函数需部署：`syncMedPlans`、`sendDue`、`bindUser`
 
 ---
 
@@ -158,7 +158,8 @@ git diff v1.0.0 v2.0
 
 - **云端逻辑**：可用内存版 `wx-server-sdk` 桩跑真实云函数代码
   - 现有脚本：`C:\Users\Administrator\AppData\Local\Temp\wxbind\run.js`、`peek.js`
-  - 用法：把 `cloudfunctions/bindUser` 复制到该目录，`node run.js`
+  - Phase 3 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\run.js`（计划写入 + 推送/暂停/解绑/额度）、`client.js`（本地计划构建）
+  - 用法：把对应 `cloudfunctions/*` 复制到该目录，`node run.js`
 - **双机联调**：子女端复制邀请码 → 长辈端首页输码 → 双方状态互看
 - **前端结构自检**：
 
@@ -171,4 +172,4 @@ node --check pages/index/index.js
 
 ## 11. 新会话开场提示
 
-> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支，有 4 个未提交的 peek 相关改动（已部署）。本次要做 Phase 3：药品计划上云 + 按 targetId 推送。
+> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支。Phase 3（药品计划上云 + 按 targetId 推送）已完成，本次做 Phase 4：长辈端「已吃药」确认 → 写 `med_logs`。

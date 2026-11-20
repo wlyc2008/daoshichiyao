@@ -138,6 +138,21 @@
   </view>
 
   <view class="card">
+    <view class="section-title">提醒强度</view>
+    <view class="choice-list">
+      <view
+        wx:for="{{intensityOptions}}"
+        wx:key="value"
+        class="choice-item small {{item.active ? 'active' : ''}}"
+        hover-class="tap-hover"
+        data-value="{{item.value}}"
+        bindtap="onIntensityTap"
+      >{{item.label}}</view>
+    </view>
+    <view class="hint intensity-hint">{{intensityDesc}}</view>
+  </view>
+
+  <view class="card">
     <view class="section-title">库存与照片</view>
 
     <view class="field">

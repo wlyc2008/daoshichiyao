@@ -14,6 +14,14 @@ function decorate(options, selected) {
   }));
 }
 
+/** 提醒强度：选中项附带说明文字，直接展示在下方 hint 里 */
+function decorateIntensity(value) {
+  return {
+    options: decorate(storage.INTENSITIES, [value]),
+    desc: (storage.INTENSITIES.filter((item) => item.value === value)[0] || {}).desc || ''
+  };
+}
+
 function sortByOptions(values, options) {
   return values.slice().sort((a, b) => {
     const ai = options.map((o) => o.value).indexOf(a);
@@ -78,6 +86,10 @@ Page({
     customTimes: [],
     previewText: '请至少选择一个服药时间',
 
+    intensityOptions: decorateIntensity('standard').options,
+    intensity: 'standard',
+    intensityDesc: decorateIntensity('standard').desc,
+
     remainingPills: '',
     photoPath: '',
     saving: false
@@ -98,6 +110,10 @@ Page({
 
     const unitIndex = Math.max(0, UNIT_LIST.indexOf(med.unit || '片'));
     const schedule = medSchedule.fromLegacy(med, storage.getMealTimes(), storage.getRoutineTimes());
+    const intensityValue = storage.INTENSITIES.some((item) => item.value === med.intensity)
+      ? med.intensity
+      : 'standard';
+    const intensity = decorateIntensity(intensityValue);
 
     this.setData({
       id: id,
@@ -105,6 +121,9 @@ Page({
       name: med.name,
       dose: String(med.dose || 1),
       unitIndex: unitIndex,
+      intensity: intensityValue,
+      intensityOptions: intensity.options,
+      intensityDesc: intensity.desc,
       remainingPills: med.remainingPills === undefined ? '' : String(med.remainingPills),
       photoPath: med.photoPath || ''
     });
@@ -165,6 +184,16 @@ Page({
 
   onUnitTap(event) {
     this.setData({ unitIndex: Number(event.currentTarget.dataset.index) });
+  },
+
+  onIntensityTap(event) {
+    const value = event.currentTarget.dataset.value;
+    const intensity = decorateIntensity(value);
+    this.setData({
+      intensity: value,
+      intensityOptions: intensity.options,
+      intensityDesc: intensity.desc
+    });
   },
 
   onStockInput(event) {
@@ -342,6 +371,7 @@ Page({
       dose: dose,
       times: times.length,
       unit: this.data.unitOptions[this.data.unitIndex],
+      intensity: this.data.intensity,
       schedule: schedule,
       remainingPills: stockValue,
       photoPath: this.data.photoPath

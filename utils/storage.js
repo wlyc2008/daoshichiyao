@@ -14,6 +14,13 @@ const RULES = [
 ];
 const UNITS = ['片', '支', '毫升'];
 const DOC_TYPES = ['discharge', 'prescription'];
+// 提醒强度：决定云端推送的文案语气，强力模式后续接未确认通知家人
+const INTENSITIES = [
+  { value: 'gentle', label: '柔和', desc: '只发一条微信提醒，不催促' },
+  { value: 'standard', label: '标准', desc: '微信提醒 + 可导出手机日历' },
+  { value: 'strong', label: '强力', desc: '微信提醒带「重要」标记，未确认时告知家人（后续开放）' }
+];
+const INTENSITY_VALUES = INTENSITIES.map((item) => item.value);
 
 const DEFAULT_MEAL_TIMES = { breakfast: '08:00', lunch: '12:00', dinner: '18:00' };
 const DEFAULT_ROUTINE_TIMES = { wake: '06:30', nap: '13:00', bedtime: '21:30' };
@@ -22,7 +29,8 @@ const DEFAULT_SETTINGS = {
   icsSignature: '',
   subscribeRequestedAt: '',
   wechatSignature: '',
-  planSignature: ''
+  planSignature: '',
+  medPlanSignature: ''
 };
 
 /** 生成唯一 ID：时间戳 + 三位随机数，避免同一毫秒内重复 */
@@ -84,6 +92,7 @@ function addMed(input) {
     dose: clampInt(source.dose, 1, 999, 1),
     times: clampInt(source.times, 1, 5, 1),
     unit: UNITS.indexOf(source.unit) >= 0 ? source.unit : '片',
+    intensity: INTENSITY_VALUES.indexOf(source.intensity) >= 0 ? source.intensity : 'standard',
     rule: RULES.indexOf(source.rule) >= 0 ? source.rule : 'after',
     fixedTime: source.fixedTime || '09:00',
     remainingPills: Math.max(0, toInt(source.remainingPills, 0)),
@@ -137,6 +146,9 @@ function updateMed(id, patch) {
   }
   if (changes.unit !== undefined && UNITS.indexOf(changes.unit) >= 0) {
     next.unit = changes.unit;
+  }
+  if (changes.intensity !== undefined && INTENSITY_VALUES.indexOf(changes.intensity) >= 0) {
+    next.intensity = changes.intensity;
   }
   if (changes.rule !== undefined && RULES.indexOf(changes.rule) >= 0) {
     next.rule = changes.rule;
@@ -370,6 +382,7 @@ function setSettings(patch) {
 }
 
 module.exports = {
+  INTENSITIES,
   DEFAULT_MEAL_TIMES,
   DEFAULT_ROUTINE_TIMES,
   DEFAULT_SETTINGS,
