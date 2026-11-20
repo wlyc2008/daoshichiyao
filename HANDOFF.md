@@ -18,7 +18,7 @@ V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正�
 | 1.0 基线 | `ef92c92`，tag `v1.0.0`，分支 `master` |
 | 1.0 物理快照 | `c:\Users\Administrator\Documents\Trae-CN\wx-v1.0-frozen`（独立可运行，勿改动） |
 | 最近提交 | `ee2c612` Phase 3：药品计划上云并按 targetId 推送 |
-| 远程仓库 | `origin` → https://github.com/wlyc2008/daoshichiyao（私有） |
+| 远程仓库 | `origin` → https://github.com/wlyc2008/daoshichiyao（公开） |
 | 未提交 | 无 |
 
 常用命令：
