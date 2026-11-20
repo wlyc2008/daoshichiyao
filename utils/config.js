@@ -5,14 +5,14 @@
  */
 module.exports = {
   // 当前小程序版本号，展示在设置页底部
-  VERSION: '1.0.0',
+  VERSION: '2.0.0',
 
   CLOUD_ENV: 'cloud1-d6g89v5us18443dd8',
 
   // 订阅消息模板「用药提醒」：药品 / 服药时间 / 剂量
   TEMPLATE_ID: 'CTeOMRptscUEp21jFiUKz3drmBP9YxioGNdgAKlTX-I',
 
-  // developer 用于体验版调试，正式发布前改为 formal
+  // 正式发布必须为 formal；体验版调试可临时改为 developer
   MINIPROGRAM_STATE: 'formal',
 
   // 云数据库集合名

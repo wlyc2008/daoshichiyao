@@ -572,7 +572,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | 长辈未授权通知 | 长辈未开启微信通知 · 查看 |
 | 长辈暂停接收 | 长辈已暂停接收 · 查看 |
 
-**设置页顶部「亲情提醒」卡片**承担全部绑定操作：
+**亲情提醒页「亲情提醒」卡片**（设置页顶部入口进入）承担全部绑定操作：
 
 | 绑定状态 | 展示 |
 | :-- | :-- |
@@ -645,6 +645,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | Phase 5 | 已完成（2026-11-20） | 强力模式漏服 Watchdog → 反向通知子女；`med_logs` 记 `missed`；库存/复诊提醒；子女历史执行记录 |
 | Phase 6 | 已完成（2026-11-20） | 最近 7 天完成率统计：应服 / 已服 / 漏服 + 每天趋势 |
 | Phase 7 | 已完成（2026-11-20） | 云端备份与换机恢复：药品、档案、记录、设置；照片不包含 |
+| Phase 8 | 已完成（2026-11-20） | 上线准备：版本 2.0.0、合规文案扫描、隐私说明页面、发布检查清单 |
 
 ### 12.8 Phase 3 实现记录
 
@@ -719,7 +720,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 - 反向通知：写给 `med_logs`（`status = 'missed'`）后，用子女 `users.quota` 发送同一模板
   - `thing5` = 药名（同刻多药合并），`time1` = 计划时刻，`short_thing7` = 「长辈还未确认」
   - 成功 `quota - 1`，43101 清零
-- 子女授权入口：设置页「亲情提醒」卡片新增「漏服通知」，`wx.requestSubscribeMessage` 成功后调 `bindUser.grant`，`users.quota + 1`
+- 子女授权入口：亲情提醒页新增「漏服通知」，`wx.requestSubscribeMessage` 成功后调 `bindUser.grant`，`users.quota + 1`
 
 **库存与复诊提示**
 
@@ -794,5 +795,51 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 - 备份为覆盖式，只保留最新一份；不提供历史版本
 - `med_logs`（云端服药记录）不包含在备份中，只备份本机 `DOSE_LOGS`
 - 恢复会覆盖本机数据，操作前有二次确认
+
+### 12.13 Phase 8 实现记录
+
+**发布状态核对**
+
+- `utils/config.js` 的 `VERSION` 更新为 `2.0.0`，设置页底部版本号同步
+- `utils/config.js` 与 `sendDue` 的 `MINIPROGRAM_STATE` 均为 `formal`
+- `app.json` 共 16 个页面，逐页核对 `.js / .json / .wxml / .wxss` 无缺失
+- 未开启 `app.json` 的 `__usePrivacyCheck__`，避免未接入隐私弹窗时阻断拍照/剪贴板
+
+**合规文案扫描**
+
+- 扫描关键词：`识别 | OCR | 处方 | 医嘱 | 药品信息 | 用药建议 | 剂量推荐`
+- 结果只有两类正常用法：
+  - `pages/doc-archive` 把「处方」作为档案类型标签
+  - `pages/med-manage` 删除确认里的「无法恢复药品信息」
+- 未出现 OCR 识别、解读处方、推荐剂量等医疗建议类表述
+
+**隐私说明**
+
+- 新页面 `pages/privacy/privacy`：收集范围、照片仅本机、云端用途、订阅消息、数据删除、医疗声明
+- 设置页「关于」分组新增「隐私说明」
+- 身份选择页新增「隐私说明」文字入口，未选身份也能查看
+
+**仍需人工完成（后台 / 真机）**
+
+1. 在微信后台填写《用户隐私保护指引》，声明拍照选图、剪贴板写入、云开发等接口
+2. 双机联调：绑定 → 到点提醒 → 已吃药确认 → 漏服通知 → 历史与周报
+3. 真机验证订阅消息额度：长辈 `accept` / 子女 `grant` 各 +1，发送后 -1
+4. 换机验证：旧机备份 → 新机「从云端恢复」→ 数据完整、照片需重拍
+5. 上传体验版，iOS / Android 各一台走查字号、点击区域与通知到达
+
+### 12.14 设置页改版
+
+- 亲情提醒从设置页的大卡片拆为独立页面 `pages/family/family`，导航标题「亲情提醒」
+- 设置页顶部只保留与「药品管理」同级的「亲情提醒」入口，点击进入新页面
+- 绑定状态、发送给父母、邀请码复制、漏服通知授权、解除绑定全部迁移到新页面
+- 设置页仅保留用药与提醒、健康档案、数据与云服务、关于、危险操作
+- 绑定相关数据字段、云函数调用与样式一并从设置页移出，避免两处维护
+
+### 12.15 子女首页精简
+
+- 移除子女首页「长辈今天」整块：完成进度、逐条状态、库存/复诊提示、本周统计与历史记录入口
+- 子女端不再调用 `medLog.today`，减少首页云函数请求；长辈端「今天的用药」保持不变
+- 同步清理 `careAlerts` 数据字段、`goCareHistory / goCareStats` 方法与相关样式
+- `pages/care-history` 与 `pages/care-stats` 暂保留但无入口，后续如需可从其他位置接入
 
 

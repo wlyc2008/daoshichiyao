@@ -443,34 +443,3 @@
   color: var(--color-text-hint);
 }
 
-/* 库存不足 / 复诊临近：子女首页卡片内的橙色提示 */
-.care-alerts {
-  margin-bottom: 20rpx;
-  padding: 16rpx 20rpx;
-  border-radius: var(--radius-sm);
-  background: var(--color-warn-light);
-}
-
-.care-alert {
-  font-size: var(--font-sm);
-  color: var(--color-warn);
-  line-height: 1.5;
-}
-
-.care-alert + .care-alert {
-  margin-top: 8rpx;
-}
-
-/* 历史记录 / 周报入口：卡片底部两端对齐 */
-.care-links {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20rpx;
-}
-
-.history-link {
-  padding: 12rpx 0 4rpx;
-  font-size: var(--font-sm);
-  color: var(--color-primary);
-  text-decoration: underline;
-}

@@ -70,7 +70,6 @@ function decorateToday(res) {
     careItems: items,
     careTotal: res.total || 0,
     careDone: res.done || 0,
-    careAlerts: res.alerts || [],
     careLoaded: true
   };
 }
@@ -81,7 +80,6 @@ function emptyToday() {
     careItems: [],
     careTotal: 0,
     careDone: 0,
-    careAlerts: [],
     careLoaded: false,
     careConfirming: ''
   };
@@ -116,11 +114,10 @@ Page({
     partnerNotifyState: '',
     partnerPaused: false,
     bindStatusText: '',
-    // Phase 4：今日用药（长辈可确认，子女只读）
+    // Phase 4：今日用药（仅长辈可确认）
     careItems: [],
     careTotal: 0,
     careDone: 0,
-    careAlerts: [],
     careLoaded: false,
     careConfirming: ''
   },
@@ -193,7 +190,6 @@ Page({
         bindStatusText: bindStatusText
       });
       this.syncTarget(profile.linkedId || '');
-      this.loadToday();
     }).catch(() => {});
   },
 
@@ -611,13 +607,8 @@ Page({
     wx.navigateTo({ url: '/pages/restore/restore' });
   },
 
-  /** 子女端查看长辈历史执行记录 */
-  goCareHistory() {
-    wx.navigateTo({ url: '/pages/care-history/care-history' });
-  },
-
-  /** 子女端查看最近 7 天完成率统计 */
-  goCareStats() {
-    wx.navigateTo({ url: '/pages/care-stats/care-stats' });
+  /** 隐私说明：未选身份时也能查看 */
+  goPrivacy() {
+    wx.navigateTo({ url: '/pages/privacy/privacy' });
   }
 });

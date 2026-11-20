@@ -1,0 +1,9 @@
+.para {
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+.para + .para {
+  margin-top: 12rpx;
+}

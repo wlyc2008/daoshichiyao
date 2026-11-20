@@ -28,6 +28,7 @@
 
     <view class="entry-link" bindtap="goBind">已有家人给的邀请码？点这里输入</view>
     <view class="entry-link" bindtap="goRestore">换手机了？从云端恢复备份</view>
+    <view class="entry-link" bindtap="goPrivacy">隐私说明</view>
   </block>
 
   <!-- 长辈：等待家人发送关怀邀请 -->
@@ -144,37 +145,7 @@
       <view class="bind-bar-action">{{bound ? '查看' : '去设置'}}</view>
     </view>
 
-    <!-- 长辈今日完成情况：只读，随时了解有没有按时吃药 -->
-    <view wx:if="{{bound}}" class="card">
-      <view class="section-title">长辈今天</view>
-
-      <view wx:if="{{careAlerts.length}}" class="care-alerts">
-        <view wx:for="{{careAlerts}}" wx:key="text" class="care-alert">{{item.text}}</view>
-      </view>
-
-      <view wx:if="{{!careLoaded}}" class="empty-text">正在读取…</view>
-      <view wx:elif="{{careTotal === 0}}" class="empty-text">今天还没有用药安排。</view>
-
-      <block wx:else>
-        <view class="summary">
-          <view class="summary-main">已服 {{careDone}}/{{careTotal}} 次</view>
-          <view class="summary-sub {{careDone === careTotal ? 'done' : ''}}">{{careDone === careTotal ? '今天都吃完了' : '还需 ' + (careTotal - careDone) + ' 次'}}</view>
-        </view>
-
-        <view wx:for="{{careItems}}" wx:key="key" class="care-row">
-          <view class="care-main">
-            <view class="care-name">{{item.medName}}</view>
-            <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
-          </view>
-          <view class="tag {{item.taken ? 'tag-done' : (item.missed ? 'tag-danger' : 'tag-pending')}}">{{item.taken ? '已吃药' : (item.missed ? '漏服' : '待服用')}}</view>
-        </view>
-      </block>
-
-      <view class="care-links">
-        <view class="history-link" hover-class="tap-hover" bindtap="goCareStats">本周统计</view>
-        <view class="history-link" hover-class="tap-hover" bindtap="goCareHistory">查看历史记录</view>
-      </view>
-    </view>
+    <!-- 长辈今日完成情况已移除，保留用药清单与本地提醒 -->
 
     <!-- 上块：用药清单 -->
     <view class="card">
