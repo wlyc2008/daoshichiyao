@@ -7,6 +7,7 @@ const medSchedule = require('../../utils/medSchedule');
 const planSync = require('../../utils/planSync');
 const role = require('../../utils/role');
 const bind = require('../../utils/bind');
+const medLog = require('../../utils/medLog');
 const config = require('../../utils/config');
 
 const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
@@ -59,6 +60,25 @@ function monthDay(dateKey) {
   return d ? (d.getMonth() + 1) + '月' + d.getDate() + '日' : String(dateKey || '');
 }
 
+/** 今日用药：补齐渲染字段，planId + time 作为列表键 */
+function decorateToday(res) {
+  const items = (res.items || []).map((item) => Object.assign({}, item, {
+    key: item.planId + '|' + item.time,
+    doseText: item.dose + (item.unit || '片')
+  }));
+  return {
+    careItems: items,
+    careTotal: res.total || 0,
+    careDone: res.done || 0,
+    careLoaded: true
+  };
+}
+
+/** 未绑定时清空今日用药，避免旧数据残留 */
+function emptyToday() {
+  return { careItems: [], careTotal: 0, careDone: 0, careLoaded: false, careConfirming: '' };
+}
+
 Page({
   data: {
     userRole: '',
@@ -87,7 +107,13 @@ Page({
     notifyPaused: false,
     partnerNotifyState: '',
     partnerPaused: false,
-    bindStatusText: ''
+    bindStatusText: '',
+    // Phase 4：今日用药（长辈可确认，子女只读）
+    careItems: [],
+    careTotal: 0,
+    careDone: 0,
+    careLoaded: false,
+    careConfirming: ''
   },
 
   onShow() {
@@ -125,12 +151,12 @@ Page({
       const partner = res.partner;
       if (!profile || !profile.linkedId || !partner) {
         // 对方解除或本地缓存过期时，首页状态要跟着回退
-        this.setData({
+        this.setData(Object.assign({
           bound: false,
           bindStatusText: '',
           partnerNotifyState: '',
           partnerPaused: false
-        });
+        }, emptyToday()));
         this.syncTarget('');
         return;
       }
@@ -141,6 +167,7 @@ Page({
           notifyState: profile.notifyState || '',
           notifyPaused: !!profile.notifyPaused
         });
+        this.loadToday();
         return;
       }
 
@@ -157,7 +184,34 @@ Page({
         bindStatusText: bindStatusText
       });
       this.syncTarget(profile.linkedId || '');
+      this.loadToday();
     }).catch(() => {});
+  },
+
+  /** 读取今日用药：长辈读自己的，子女读长辈的 */
+  loadToday() {
+    medLog.fetchToday().then((res) => {
+      this.setData(decorateToday(res));
+    }).catch(() => {
+      this.setData({ careLoaded: true });
+    });
+  },
+
+  /** 长辈点「已吃药」：写入云端记录并刷新进度 */
+  onConfirmTaken(e) {
+    const planId = e.currentTarget.dataset.planId;
+    const time = e.currentTarget.dataset.time;
+    if (!planId || !time || this.data.careConfirming) return;
+
+    this.setData({ careConfirming: planId + '|' + time });
+    medLog.confirm(planId, time).then(() => {
+      this.setData({ careConfirming: '' });
+      this.loadToday();
+      wx.showToast({ title: '已记录', icon: 'success' });
+    }).catch((err) => {
+      this.setData({ careConfirming: '' });
+      wx.showToast({ title: (err && err.message) || '记录失败，请稍后重试', icon: 'none' });
+    });
   },
 
   /** 绑定关系变化后强制重写云端计划，保证 med_plans.targetId 是最新的 */
@@ -185,12 +239,12 @@ Page({
         wx.showLoading({ title: '正在处理', mask: true });
         bind.unbind().then(() => {
           wx.hideLoading();
-          this.setData({
+          this.setData(Object.assign({
             bound: false,
             typedCode: '',
             bindError: '',
             acked: false
-          });
+          }, emptyToday()));
           wx.showToast({ title: '已停止接收提醒', icon: 'none' });
         }).catch(() => {
           wx.hideLoading();
@@ -249,6 +303,7 @@ Page({
         notifyPaused: false,
         notifyState: notifyState || ''
       });
+      this.loadToday();
       wx.showToast({
         title: notifyState === 'accept' ? '已开启家人的提醒' : '已绑定，但通知未开启',
         icon: 'none'
@@ -307,6 +362,7 @@ Page({
     this.requestNotify((state) => {
       bind.resume(state).then(() => {
         this.setData({ binding: false, notifyPaused: false, notifyState: state || '' });
+        this.loadToday();
         wx.showToast({
           title: state === 'accept' ? '已恢复接收' : '已恢复，但通知未开启',
           icon: 'none'

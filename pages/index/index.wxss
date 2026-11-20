@@ -377,3 +377,53 @@
   text-decoration: underline;
   padding: 16rpx 0;
 }
+
+/* 今日用药：一行一次，右侧是确认按钮或状态 */
+.care-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 0;
+  border-bottom: 2rpx solid var(--color-border);
+}
+
+.care-row:last-child {
+  border-bottom: none;
+  padding-bottom: 4rpx;
+}
+
+.care-main {
+  flex: 1;
+  min-width: 0;
+  margin-right: 16rpx;
+}
+
+.care-name {
+  font-size: var(--font-h2);
+  color: var(--color-text);
+}
+
+.care-meta {
+  margin-top: 6rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+}
+
+.care-action {
+  flex-shrink: 0;
+  padding: 14rpx 32rpx;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary);
+  color: #FFFFFF;
+  font-size: var(--font-sm);
+  font-weight: bold;
+}
+
+.care-action:active {
+  background: var(--color-primary-dark);
+}
+
+.care-action.disabled {
+  background: var(--color-border);
+  color: var(--color-text-hint);
+}

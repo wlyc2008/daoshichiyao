@@ -641,7 +641,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | 阶段 | 状态 | 内容 |
 | :-- | :-- | :-- |
 | Phase 3 | 已完成（2026-11-20） | 药品计划上云（`med_plans` + 提醒强度 柔和/标准/强力），`sendDue` 按 targetId 推给长辈，并跳过 `notifyPaused = true` 的用户 |
-| Phase 4 | 待实现 | 长辈端「已吃药」一键确认 → 写入 `med_logs` |
+| Phase 4 | 已完成（2026-11-20） | 长辈端「已吃药」一键确认 → 写入 `med_logs`，子女端可看今日完成情况 |
 | Phase 5 | 待实现 | Watchdog 定时检测漏服 → 反向通知子女；库存与复诊提醒 |
 
 ### 12.8 Phase 3 实现记录
@@ -676,5 +676,33 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
   - 跳过 `notifyPaused = true`、关系失效、额度为 0 的长辈
   - 同一时刻多种药合并为一条消息
 - 额度 `users.quota`：长辈 `accept` / `resume`（授权成功）+1，推送成功 -1，43101 清零
+
+### 12.9 Phase 4 实现记录
+
+**用药记录 `med_logs`**
+
+| 字段 | 说明 |
+| :-- | :-- |
+| `planId` / `medId` | 计划与药品标识 |
+| `ownerId` / `targetId` | 子女与长辈 openid |
+| `medName` / `dose` / `unit` | 确认时的药品快照 |
+| `time` / `plannedTime` / `dateKey` | `HH:mm`、完整时刻、日期键（北京时间） |
+| `status` | `taken`；Phase 5 再扩展 `missed` / `snoozed` |
+| `confirmedAt` | 确认时间戳 |
+
+**云函数 `medLog`**
+
+- `today`：按角色返回今日用药——长辈读自己的，子女读长辈的；计划按 `ownerId` 读取，兼容 `targetId` 尚未刷新的历史数据
+- `confirm`：仅长辈可调用；校验计划归属、`status` 与时刻后写 `med_logs` 并扣减云端库存；同一时刻重复确认幂等
+
+**前端**
+
+- 长辈首页「今天的用药」：时间 + 药名 + 剂量 +「已吃药」，确认后即时刷新进度
+- 子女首页「长辈今天」只读卡片：完成进度 + 逐条状态
+- 暂停接收时长辈端不展示用药清单
+
+**已知限制**
+
+- 云端库存与子女端本地库存分离：长辈确认只减云端，子女下次补货/保存会以本地库存覆盖云端
 
 

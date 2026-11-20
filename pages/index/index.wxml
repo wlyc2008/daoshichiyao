@@ -64,6 +64,37 @@
       </block>
     </view>
 
+    <!-- 今日用药：长辈只需点「已吃药」 -->
+    <view wx:if="{{bound && !notifyPaused}}" class="card">
+      <view class="section-title">今天的用药</view>
+
+      <view wx:if="{{!careLoaded}}" class="empty-text">正在读取家人的安排…</view>
+      <view wx:elif="{{careTotal === 0}}" class="empty-text">家人还没有设置今天的用药。</view>
+
+      <block wx:else>
+        <view class="summary">
+          <view class="summary-main">今天 {{careDone}}/{{careTotal}} 次</view>
+          <view class="summary-sub {{careDone === careTotal ? 'done' : ''}}">{{careDone === careTotal ? '今天的药都吃完了' : '还需 ' + (careTotal - careDone) + ' 次'}}</view>
+        </view>
+
+        <view wx:for="{{careItems}}" wx:key="key" class="care-row">
+          <view class="care-main">
+            <view class="care-name">{{item.medName}}</view>
+            <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
+          </view>
+          <view wx:if="{{item.taken}}" class="tag tag-done">已吃药</view>
+          <view
+            wx:else
+            class="care-action {{careConfirming === item.key ? 'disabled' : ''}}"
+            hover-class="tap-hover"
+            data-plan-id="{{item.planId}}"
+            data-time="{{item.time}}"
+            bindtap="onConfirmTaken"
+          >{{careConfirming === item.key ? '记录中' : '已吃药'}}</view>
+        </view>
+      </block>
+    </view>
+
     <view wx:else class="card">
       <view class="section-title">等待家人的提醒</view>
       <view class="empty-text">请让子女在小程序里点击「发送给父母」，把提醒卡片转发到您的微信。</view>
@@ -107,6 +138,29 @@
     <view class="bind-bar" hover-class="tap-hover" bindtap="goSettings">
       <view class="bind-bar-text {{bound ? '' : 'bind-bar-idle'}}">{{bound ? bindStatusText : '尚未绑定长辈'}}</view>
       <view class="bind-bar-action">{{bound ? '查看' : '去设置'}}</view>
+    </view>
+
+    <!-- 长辈今日完成情况：只读，随时了解有没有按时吃药 -->
+    <view wx:if="{{bound}}" class="card">
+      <view class="section-title">长辈今天</view>
+
+      <view wx:if="{{!careLoaded}}" class="empty-text">正在读取…</view>
+      <view wx:elif="{{careTotal === 0}}" class="empty-text">今天还没有用药安排。</view>
+
+      <block wx:else>
+        <view class="summary">
+          <view class="summary-main">已服 {{careDone}}/{{careTotal}} 次</view>
+          <view class="summary-sub {{careDone === careTotal ? 'done' : ''}}">{{careDone === careTotal ? '今天都吃完了' : '还需 ' + (careTotal - careDone) + ' 次'}}</view>
+        </view>
+
+        <view wx:for="{{careItems}}" wx:key="key" class="care-row">
+          <view class="care-main">
+            <view class="care-name">{{item.medName}}</view>
+            <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
+          </view>
+          <view class="tag {{item.taken ? 'tag-done' : 'tag-pending'}}">{{item.taken ? '已吃药' : '待服用'}}</view>
+        </view>
+      </block>
     </view>
 
     <!-- 上块：用药清单 -->

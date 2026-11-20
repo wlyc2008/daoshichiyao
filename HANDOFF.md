@@ -6,7 +6,7 @@
 
 ## 1. 现状一句话
 
-V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定全链路**与 **Phase 3 药品计划上云 + 按 targetId 推送**，下一步是 **Phase 4 服药确认**。
+V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正在把产品转型为**「子女远程设置 + 长辈极简接收」**的关怀模式，已完成**身份识别**、**亲情绑定**、**Phase 3 计划上云 + 按 targetId 推送**与 **Phase 4 服药确认**，下一步是 **Phase 5 漏服看护**。
 
 ---
 
@@ -17,9 +17,9 @@ V1.0 已上线（单机版，面向能自己操作手机的用户）；V2.0 正�
 | 当前分支 | `v2.0` |
 | 1.0 基线 | `ef92c92`，tag `v1.0.0`，分支 `master` |
 | 1.0 物理快照 | `c:\Users\Administrator\Documents\Trae-CN\wx-v1.0-frozen`（独立可运行，勿改动） |
-| 最近提交 | `ee2c612` Phase 3：药品计划上云并按 targetId 推送 |
+| 最近提交 | 以 `git log --oneline -5` 为准 |
 | 远程仓库 | `origin` → https://github.com/wlyc2008/daoshichiyao（公开） |
-| 未提交 | 无 |
+| 未提交 | 以 `git status` 为准 |
 
 常用命令：
 
@@ -65,6 +65,11 @@ git diff v1.0.0 v2.0
    - 绑定/解绑后首页强制重写计划，保证 `med_plans.targetId` 最新
    - `sendDue` 保留 V1 逻辑，并行按 targetId 推给长辈：跳过暂停、解绑、额度耗尽
    - 长辈授权额度落在 `users.quota`：`accept` / `resume` +1，发送成功 -1
+7. **服药确认（Phase 4）**：
+   - 云函数 `medLog`：`today` 按角色返回今日用药，`confirm` 写 `med_logs` 并扣减云端库存
+   - 长辈首页「今天的用药」：点「已吃药」即记录，进度即时刷新
+   - 子女首页「长辈今天」：只读展示完成进度与逐条状态
+   - 同一时刻重复确认幂等；暂停接收时长辈端不展示清单
 
 ---
 
@@ -79,9 +84,11 @@ git diff v1.0.0 v2.0
 | `utils/role.js` | 身份读写（本地 + 云端登记） |
 | `utils/cloud.js` | 云开发封装，含通用 `callFunction` |
 | `utils/planSync.js` | 计划上云：V1 `reminder_plans` + V2 `med_plans` 双指纹同步 |
+| `utils/medLog.js` | 今日用药读取与「已吃药」确认封装 |
 | `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / unbind`，并维护长辈 `quota` |
 | `cloudfunctions/syncMedPlans/index.js` | 按 `ownerId + medId` upsert `med_plans`，删除本地已移除的计划 |
 | `cloudfunctions/sendDue/index.js` | 定时推送：V1 计划 + `med_plans` 按 targetId 推给长辈 |
+| `cloudfunctions/medLog/index.js` | `today` 今日用药（按角色）、`confirm` 写 `med_logs` 并扣减云端库存 |
 | `MASTER_PLAN.md` | 第 12 章已记录 v2.0 交互逻辑，改完逻辑记得同步 |
 
 ---
@@ -98,6 +105,7 @@ git diff v1.0.0 v2.0
 | `invites` | `code / caregiverOpenId / used / usedBy / expireAt` |
 | `reminder_plans` | V1 自提醒计划（未绑定也能用） |
 | `med_plans` | `ownerId / targetId / medId / medName / dose / unit / intensity / schedule / stock / nextVisit / status` |
+| `med_logs` | `planId / medId / ownerId / targetId / medName / dose / unit / time / plannedTime / dateKey / status / confirmedAt` |
 
 部署命令（已验证可用）：
 
@@ -135,25 +143,24 @@ git diff v1.0.0 v2.0
 
 ---
 
-## 9. 下一步：Phase 4（长辈端服药确认）
+## 9. 下一步：Phase 5（漏服看护）
 
-Phase 3 已完成并验证：药品计划上云（`med_plans`）、提醒强度、`sendDue` 按 targetId 推送。
+Phase 4 已完成并验证：`med_logs` 记录、长辈「已吃药」确认、子女只读进度。
 
-### Phase 4 目标
-长辈收到提醒后点「已吃药」，结果写 `med_logs`，子女端能看到执行情况。
+### Phase 5 目标
+强力模式超过 30 分钟未确认时反向通知子女；库存与复诊提醒接入云端。
 
 ### 任务清单
-1. 新建 `med_logs` 集合：`planId / ownerId / targetId / medName / plannedTime / confirmedAt / status(taken|missed|snoozed)`
-2. 长辈首页展示家人为自己设置的今日用药清单（按 targetId 读取 `med_plans`）
-3. 点「已吃药」→ 写 `med_logs` + 扣减计划库存
-4. 子女端首页展示长辈今日完成情况（只读）
-5. Watchdog：强力模式 30 分钟未确认 → 反向通知子女（Phase 5）
+1. Watchdog：定时扫描 `med_plans` 的 `intensity = strong`，超时未确认 → 通知 `ownerId`
+2. 漏服日志补写 `status = missed`，供子女端展示
+3. 库存不足/复诊临近的通知（沿用 `nextVisit` 与 `stock`）
+4. 子女端可查看历史执行记录（按日期）
 
 ### 注意
 - 不要破坏 V1 的 `reminder_plans`，做增量
 - 云函数超时 3 秒，批量发送需并发分批（V1/Phase 3 已用每批 20）
 - 改完同步更新 `MASTER_PLAN.md` 第 12 章
-- Phase 3 新增云函数需部署：`syncMedPlans`、`sendDue`、`bindUser`
+- Phase 4 新增云函数已部署：`medLog`
 
 ---
 
@@ -162,6 +169,7 @@ Phase 3 已完成并验证：药品计划上云（`med_plans`）、提醒强度�
 - **云端逻辑**：可用内存版 `wx-server-sdk` 桩跑真实云函数代码
   - 现有脚本：`C:\Users\Administrator\AppData\Local\Temp\wxbind\run.js`、`peek.js`
   - Phase 3 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\run.js`（计划写入 + 推送/暂停/解绑/额度）、`client.js`（本地计划构建）
+  - Phase 4 脚本：`C:\Users\Administrator\AppData\Local\Temp\wxphase3\phase4.js`（今日用药 + 确认/幂等/库存）
   - 用法：把对应 `cloudfunctions/*` 复制到该目录，`node run.js`
 - **双机联调**：子女端复制邀请码 → 长辈端首页输码 → 双方状态互看
 - **前端结构自检**：
@@ -175,4 +183,4 @@ node --check pages/index/index.js
 
 ## 11. 新会话开场提示
 
-> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支。Phase 3（药品计划上云 + 按 targetId 推送）已完成，本次做 Phase 4：长辈端「已吃药」确认 → 写 `med_logs`。
+> 继续「到时吃药」小程序 2.0 开发。先读 `HANDOFF.md` 与 `MASTER_PLAN.md` 第 12 章，当前在 `v2.0` 分支。Phase 4（长辈「已吃药」→ `med_logs`）已完成，本次做 Phase 5：强力模式漏服 Watchdog → 反向通知子女。

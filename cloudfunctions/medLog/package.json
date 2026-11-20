@@ -1,0 +1,9 @@
+{
+  "name": "medLog",
+  "version": "2.0.0",
+  "description": "读取今日用药并记录长辈的「已吃药」确认",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
