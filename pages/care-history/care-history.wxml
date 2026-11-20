@@ -1,0 +1,29 @@
+<view class="page">
+  <view class="card">
+    <view class="history-head">
+      <view class="section-title">执行记录</view>
+      <picker mode="date" value="{{day}}" end="{{maxDay}}" bindchange="onPickDay">
+        <view class="day-picker">{{day}} ▾</view>
+      </picker>
+    </view>
+
+    <view wx:if="{{!loaded}}" class="empty-text">正在读取…</view>
+    <view wx:elif="{{!bound}}" class="empty-text">还没有绑定家人，暂时没有记录。</view>
+    <view wx:elif="{{total === 0}}" class="empty-text">这一天没有执行记录。</view>
+
+    <block wx:else>
+      <view class="summary">
+        <view class="summary-main">已吃药 {{taken}} 次</view>
+        <view class="summary-sub {{missed ? 'danger-text' : 'done'}}">{{missed ? '漏服 ' + missed + ' 次' : '没有漏服'}}</view>
+      </view>
+
+      <view wx:for="{{items}}" wx:key="key" class="care-row">
+        <view class="care-main">
+          <view class="care-name">{{item.medName}}</view>
+          <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
+        </view>
+        <view class="tag {{item.statusClass}}">{{item.statusText}}</view>
+      </view>
+    </block>
+  </view>
+</view>

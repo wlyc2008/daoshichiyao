@@ -188,6 +188,27 @@ async function resumeNotify(openid, rawNotifyState) {
   return { ok: true };
 }
 
+/**
+ * 子女端：为「漏服通知」申请额度
+ * 与长辈的提醒额度共用 users.quota，但各自落在自己的用户文档上，互不影响
+ */
+async function grantCareNotify(openid, rawNotifyState) {
+  const user = await findUser(openid);
+  if (!user) return { ok: false, msg: '用户不存在' };
+  if (!user.linkedId) return { ok: false, msg: '尚未绑定长辈' };
+
+  const notifyState = normalizeNotifyState(rawNotifyState);
+  const patch = {
+    careNotifyState: notifyState,
+    careNotifyAt: Date.now()
+  };
+  if (notifyState === 'accept') patch.quota = _.inc(1);
+  await updateUser(user, patch);
+
+  const quota = (Number(user.quota) || 0) + (notifyState === 'accept' ? 1 : 0);
+  return { ok: true, notifyState: notifyState, quota: quota };
+}
+
 /** 打开卡片时先校验，避免自己打开自己的邀请还要走到「确认」才知道 */
 async function peekInvite(openid, rawCode) {
   const code = String(rawCode || '').trim().toUpperCase();
@@ -266,6 +287,7 @@ exports.main = async (event) => {
   if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState);
   if (action === 'pause') return pauseNotify(OPENID);
   if (action === 'resume') return resumeNotify(OPENID, event.notifyState);
+  if (action === 'grant') return grantCareNotify(OPENID, event.notifyState);
   if (action === 'unbind') return unbindUser(OPENID);
   return getStatus(OPENID);
 };

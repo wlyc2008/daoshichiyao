@@ -6,6 +6,7 @@ const _ = db.command;
 
 const COLLECTION = 'reminder_plans';
 const MED_PLANS = 'med_plans';
+const LOGS = 'med_logs';
 const USERS = 'users';
 const HEARTBEAT = 'heartbeat';
 const TEMPLATE_ID = 'CTeOMRptscUEp21jFiUKz3drmBP9YxioGNdgAKlTX-I';
@@ -23,8 +24,27 @@ function beijingNow() {
   return new Date(Date.now() + 8 * 3600 * 1000);
 }
 
+/** 取北京时间日期键 YYYY-MM-DD（传入的 Date 已偏移到北京时间） */
+function beijingDateKey(value) {
+  return value.getUTCFullYear() + '-' + pad(value.getUTCMonth() + 1) + '-' + pad(value.getUTCDate());
+}
+
+/** HH:mm 转成当天分钟数，非法值返回 -1 */
+function minutesOf(time) {
+  const matched = /^(\d{1,2}):(\d{2})$/.exec(String(time || ''));
+  if (!matched) return -1;
+  const hour = Number(matched[1]);
+  const minute = Number(matched[2]);
+  if (hour > 23 || minute > 59) return -1;
+  return hour * 60 + minute;
+}
+
 // 心跳写频率：每 5 分钟一次即可满足状态自检，避免占满免费额度
 const HEARTBEAT_MINUTE_STEP = 5;
+// 漏服判定窗口：计划时刻后 30~35 分钟仍未确认，配合 5 分钟一次的扫描刚好覆盖
+const MISS_MIN_MINUTES = 30;
+const MISS_MAX_MINUTES = 35;
+const WATCH_MINUTE_STEP = 5;
 // 集合创建只需成功一次，后续复用同一容器时不再重复调用
 let heartbeatReady = false;
 
@@ -156,6 +176,163 @@ async function sendCarePlans(timeKey, timeText) {
 }
 
 /**
+ * Phase 5：强力模式漏服看护
+ * 计划时刻后 30~35 分钟仍未确认，补写 missed 日志并反向通知子女
+ * 仅在 5 分钟边界执行，避免每分钟扫全表
+ */
+async function checkMissedDoses(now) {
+  try {
+    await db.createCollection(LOGS);
+  } catch (err) {
+    // 已存在时忽略
+  }
+
+  let found;
+  try {
+    found = await db.collection(MED_PLANS)
+      .where({ intensity: 'strong', status: 'active' })
+      .limit(100)
+      .get();
+  } catch (err) {
+    // 集合尚未创建时跳过
+    return { checked: 0, missed: 0, sent: 0 };
+  }
+
+  const nowMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
+  const todayKey = beijingDateKey(now);
+  const yesterdayKey = beijingDateKey(new Date(now.getTime() - 24 * 3600 * 1000));
+
+  // 先收集命中窗口的计划时刻；跨零点时归属到前一天
+  const candidates = [];
+  found.data.forEach((plan) => {
+    (plan.schedule || []).forEach((time) => {
+      const planned = minutesOf(time);
+      if (planned < 0) return;
+      let diff = nowMinutes - planned;
+      let dateKey = todayKey;
+      if (diff < 0) {
+        diff += 24 * 60;
+        dateKey = yesterdayKey;
+      }
+      if (diff < MISS_MIN_MINUTES || diff > MISS_MAX_MINUTES) return;
+      candidates.push({ plan: plan, time: time, dateKey: dateKey });
+    });
+  });
+
+  const userCache = {};
+  async function cachedUser(openid) {
+    if (!openid) return null;
+    if (!userCache[openid]) userCache[openid] = await findUser(openid);
+    return userCache[openid];
+  }
+
+  let missed = 0;
+  const groups = {};
+
+  async function markMissed(candidate) {
+    const plan = candidate.plan;
+    // 关系失效或长辈暂停接收时不再判定漏服，避免误报
+    const owner = await cachedUser(plan.ownerId);
+    const targetId = owner && owner.linkedId ? owner.linkedId : '';
+    if (!targetId) return;
+    const target = await cachedUser(targetId);
+    if (!target || target.role !== 'caree' || target.linkedId !== plan.ownerId) return;
+    if (target.notifyPaused) return;
+
+    const plannedTime = candidate.dateKey + ' ' + candidate.time;
+
+    // 已确认或已记过漏服时直接跳过，保证幂等
+    const existed = await db.collection(LOGS).where({
+      planId: plan._id,
+      plannedTime: plannedTime
+    }).limit(1).get();
+    if (existed.data.length) return;
+
+    const stamp = Date.now();
+    await db.collection(LOGS).add({
+      data: {
+        planId: plan._id,
+        medId: plan.medId,
+        ownerId: plan.ownerId,
+        targetId: targetId,
+        medName: plan.medName,
+        dose: plan.dose,
+        unit: plan.unit,
+        time: candidate.time,
+        plannedTime: plannedTime,
+        dateKey: candidate.dateKey,
+        status: 'missed',
+        detectedAt: stamp,
+        createdAt: stamp
+      }
+    });
+    missed += 1;
+
+    // 同一子女同一时刻的多种药合并成一条通知
+    const key = plan.ownerId + '|' + plannedTime;
+    groups[key] = groups[key] || {
+      ownerId: plan.ownerId,
+      plannedTime: plannedTime,
+      names: []
+    };
+    if (groups[key].names.indexOf(plan.medName) === -1) groups[key].names.push(plan.medName);
+  }
+
+  const BATCH = 10;
+  for (let i = 0; i < candidates.length; i += BATCH) {
+    await Promise.all(candidates.slice(i, i + BATCH).map((item) => markMissed(item).catch(() => {})));
+  }
+
+  let sent = 0;
+
+  async function notifyGroup(key) {
+    const group = groups[key];
+    const owner = await cachedUser(group.ownerId);
+    if (!owner || !owner.openid) return;
+    if ((Number(owner.quota) || 0) <= 0) return;
+    // 先占用额度，避免同一子女的多条漏服并发发送时超发
+    owner.quota = (Number(owner.quota) || 0) - 1;
+
+    try {
+      await cloud.openapi.subscribeMessage.send({
+        touser: owner.openid,
+        templateId: TEMPLATE_ID,
+        page: PAGE,
+        miniprogramState: MINIPROGRAM_STATE,
+        lang: 'zh_CN',
+        data: {
+          thing5: { value: truncate(group.names.join('、'), 20) },
+          time1: { value: group.plannedTime },
+          short_thing7: { value: '长辈还未确认' }
+        }
+      });
+
+      await db.collection(USERS).doc(owner._id).update({
+        data: { quota: _.inc(-1), lastNotifyAt: Date.now() }
+      });
+      sent += 1;
+    } catch (err) {
+      // 43101：子女未订阅或额度已耗尽，清零避免反复无效调用
+      if (err && String(err.errCode) === '43101') {
+        owner.quota = 0;
+        await db.collection(USERS).doc(owner._id).update({ data: { quota: 0 } });
+      } else {
+        // 其他失败把预占的额度还回去
+        owner.quota = (Number(owner.quota) || 0) + 1;
+      }
+    }
+  }
+
+  const keys = Object.keys(groups);
+  const CONCURRENCY = 20;
+  for (let i = 0; i < keys.length; i += CONCURRENCY) {
+    await Promise.all(keys.slice(i, i + CONCURRENCY).map((key) => notifyGroup(key).catch(() => {})));
+  }
+
+  return { checked: found.data.length, missed: missed, sent: sent };
+}
+
+/**
  * 定时触发：每分钟检查一次，命中计划时刻且有授权次数的用户发送订阅消息
  * 客户端可用 { action: 'status' } 调用，读取最近一次执行时间
  */
@@ -197,6 +374,10 @@ exports.main = async (event = {}) => {
   // 长辈端计划与 V1 计划互不影响，并行发送以压缩总耗时
   const careTask = sendCarePlans(timeKey, timeText);
 
+  // 漏服看护只在 5 分钟边界扫描，手动调用（调试）时始终执行
+  const shouldWatch = !fromTimer || now.getUTCMinutes() % WATCH_MINUTE_STEP === 0;
+  const watchTask = shouldWatch ? checkMissedDoses(now) : Promise.resolve(null);
+
   let matched;
   try {
     matched = await db.collection(COLLECTION)
@@ -206,7 +387,8 @@ exports.main = async (event = {}) => {
   } catch (err) {
     // 集合尚未创建时，V1 计划为空，但长辈计划仍要推送
     const care = await careTask.catch(() => ({ matched: 0, sent: 0 }));
-    return { timeKey, matched: 0, sent: 0, care: care };
+    const watch = await watchTask.catch(() => null);
+    return { timeKey, matched: 0, sent: 0, care: care, watch: watch };
   }
 
   /** 发送单个用户的提醒，成功返回 1，失败返回 0 */
@@ -254,6 +436,7 @@ exports.main = async (event = {}) => {
   }
 
   const care = await careTask.catch(() => ({ matched: 0, sent: 0 }));
+  const watch = await watchTask.catch(() => null);
 
-  return { timeKey, matched: matched.data.length, sent, care: care };
+  return { timeKey, matched: matched.data.length, sent, care: care, watch: watch };
 };

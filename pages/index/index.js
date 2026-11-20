@@ -70,13 +70,21 @@ function decorateToday(res) {
     careItems: items,
     careTotal: res.total || 0,
     careDone: res.done || 0,
+    careAlerts: res.alerts || [],
     careLoaded: true
   };
 }
 
 /** 未绑定时清空今日用药，避免旧数据残留 */
 function emptyToday() {
-  return { careItems: [], careTotal: 0, careDone: 0, careLoaded: false, careConfirming: '' };
+  return {
+    careItems: [],
+    careTotal: 0,
+    careDone: 0,
+    careAlerts: [],
+    careLoaded: false,
+    careConfirming: ''
+  };
 }
 
 Page({
@@ -112,6 +120,7 @@ Page({
     careItems: [],
     careTotal: 0,
     careDone: 0,
+    careAlerts: [],
     careLoaded: false,
     careConfirming: ''
   },
@@ -595,5 +604,10 @@ Page({
 
   goSettings() {
     wx.navigateTo({ url: '/pages/settings/settings' });
+  },
+
+  /** 子女端查看长辈历史执行记录 */
+  goCareHistory() {
+    wx.navigateTo({ url: '/pages/care-history/care-history' });
   }
 });

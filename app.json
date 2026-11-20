@@ -11,6 +11,7 @@
     "pages/doc-archive/doc-archive",
     "pages/med-manage/med-manage",
     "pages/logs/logs",
+    "pages/care-history/care-history",
     "pages/settings/settings"
   ],
   "window": {

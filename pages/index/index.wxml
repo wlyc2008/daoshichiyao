@@ -79,7 +79,10 @@
 
         <view wx:for="{{careItems}}" wx:key="key" class="care-row">
           <view class="care-main">
-            <view class="care-name">{{item.medName}}</view>
+            <view class="care-head">
+              <view class="care-name">{{item.medName}}</view>
+              <view wx:if="{{item.missed && !item.taken}}" class="tag tag-danger">漏服</view>
+            </view>
             <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
           </view>
           <view wx:if="{{item.taken}}" class="tag tag-done">已吃药</view>
@@ -144,6 +147,10 @@
     <view wx:if="{{bound}}" class="card">
       <view class="section-title">长辈今天</view>
 
+      <view wx:if="{{careAlerts.length}}" class="care-alerts">
+        <view wx:for="{{careAlerts}}" wx:key="text" class="care-alert">{{item.text}}</view>
+      </view>
+
       <view wx:if="{{!careLoaded}}" class="empty-text">正在读取…</view>
       <view wx:elif="{{careTotal === 0}}" class="empty-text">今天还没有用药安排。</view>
 
@@ -158,9 +165,11 @@
             <view class="care-name">{{item.medName}}</view>
             <view class="care-meta">{{item.time}} · {{item.doseText}}</view>
           </view>
-          <view class="tag {{item.taken ? 'tag-done' : 'tag-pending'}}">{{item.taken ? '已吃药' : '待服用'}}</view>
+          <view class="tag {{item.taken ? 'tag-done' : (item.missed ? 'tag-danger' : 'tag-pending')}}">{{item.taken ? '已吃药' : (item.missed ? '漏服' : '待服用')}}</view>
         </view>
       </block>
+
+      <view class="history-link" hover-class="tap-hover" bindtap="goCareHistory">查看历史记录</view>
     </view>
 
     <!-- 上块：用药清单 -->

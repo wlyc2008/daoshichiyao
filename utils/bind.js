@@ -59,6 +59,17 @@ function resume(notifyState) {
   });
 }
 
+/** 子女端：为「漏服通知」申请一条发送额度 */
+function grant(notifyState) {
+  return cloud.callFunction('bindUser', {
+    action: 'grant',
+    notifyState: notifyState || ''
+  }).then((res) => {
+    if (!res.ok) throw new Error(res.msg || '开启失败');
+    return res;
+  });
+}
+
 function unbind() {
   return cloud.callFunction('bindUser', { action: 'unbind' }).then((res) => {
     if (!res.ok) throw new Error(res.msg || '解除绑定失败');
@@ -76,6 +87,7 @@ module.exports = {
   acceptInvite,
   pause,
   resume,
+  grant,
   unbind,
   fetchStatus
 };

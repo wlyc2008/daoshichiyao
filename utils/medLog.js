@@ -23,7 +23,19 @@ function confirm(planId, time) {
   });
 }
 
+/** 按日期读取执行记录（已吃药 / 漏服） */
+function fetchHistory(dateKey) {
+  return cloud.callFunction('medLog', {
+    action: 'history',
+    dateKey: dateKey || ''
+  }).then((res) => {
+    if (res && res.ok === false) throw new Error(res.msg || '读取历史记录失败');
+    return res || {};
+  });
+}
+
 module.exports = {
   fetchToday,
-  confirm
+  confirm,
+  fetchHistory
 };

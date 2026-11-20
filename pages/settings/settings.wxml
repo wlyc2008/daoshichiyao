@@ -14,6 +14,16 @@
       <view wx:if="{{partnerPaused}}" class="empty-text">长辈暂时关掉了提醒，让其在小程序里点「恢复接收」即可。</view>
       <view wx:elif="{{partnerNotifyState !== 'accept'}}" class="empty-text">长辈还没允许微信通知，让其在小程序里点「重新开启」即可。</view>
       <view wx:else class="empty-text">长辈已能正常收到微信提醒。</view>
+
+      <block wx:if="{{isCaregiver}}">
+        <view class="care-notify">
+          <view class="care-notify-title">漏服通知</view>
+          <view wx:if="{{careQuota > 0}}" class="empty-text">已开启，剩余 {{careQuota}} 次通知额度。长辈的强力提醒超过 30 分钟未确认时会通知您。</view>
+          <view wx:else class="empty-text">开启后，长辈的强力提醒超过 30 分钟未确认时，会用微信通知您。</view>
+          <button class="btn-secondary" bindtap="onGrantCareNotify" disabled="{{grantingCare}}">{{careQuota > 0 ? '补充一次通知额度' : '开启漏服通知'}}</button>
+        </view>
+      </block>
+
       <view class="unbind-link" bindtap="onUnbind">解除绑定</view>
     </block>
   </view>

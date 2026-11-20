@@ -642,7 +642,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | :-- | :-- | :-- |
 | Phase 3 | 已完成（2026-11-20） | 药品计划上云（`med_plans` + 提醒强度 柔和/标准/强力），`sendDue` 按 targetId 推给长辈，并跳过 `notifyPaused = true` 的用户 |
 | Phase 4 | 已完成（2026-11-20） | 长辈端「已吃药」一键确认 → 写入 `med_logs`，子女端可看今日完成情况 |
-| Phase 5 | 待实现 | Watchdog 定时检测漏服 → 反向通知子女；库存与复诊提醒 |
+| Phase 5 | 已完成（2026-11-20） | 强力模式漏服 Watchdog → 反向通知子女；`med_logs` 记 `missed`；库存/复诊提醒；子女历史执行记录 |
 
 ### 12.8 Phase 3 实现记录
 
@@ -664,7 +664,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 | :-- | :-- |
 | 柔和 | 仅一条微信订阅消息，不做催促文案 |
 | 标准 | 微信订阅消息（默认） |
-| 强力 | 消息文案前缀「【重要】」「请立即服用」；30 分钟未确认反查家人留待 Phase 5 |
+| 强力 | 消息文案前缀「【重要】」「请立即服用」；30 分钟未确认反查家人（Phase 5 已实现） |
 
 **同步与推送**
 
@@ -704,5 +704,41 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 **已知限制**
 
 - 云端库存与子女端本地库存分离：长辈确认只减云端，子女下次补货/保存会以本地库存覆盖云端
+
+### 12.10 Phase 5 实现记录
+
+**漏服看护（Watchdog）**
+
+- 位置：`sendDue` 内新增 `checkMissedDoses`，仅在 **5 分钟边界**执行（手动调用立即执行），不新增触发器
+- 扫描范围：`med_plans` 中 `intensity = strong` 且 `status = active`
+- 判定窗口：计划时刻后 **30~35 分钟**仍未确认；跨零点时归属前一天
+- 前置校验：子女与长辈 `linkedId` 双向一致；长辈 `notifyPaused = true` 时不判定、不记录
+- 幂等：同一 `planId + plannedTime` 已有 `taken` / `missed` 记录时跳过
+- 反向通知：写给 `med_logs`（`status = 'missed'`）后，用子女 `users.quota` 发送同一模板
+  - `thing5` = 药名（同刻多药合并），`time1` = 计划时刻，`short_thing7` = 「长辈还未确认」
+  - 成功 `quota - 1`，43101 清零
+- 子女授权入口：设置页「亲情提醒」卡片新增「漏服通知」，`wx.requestSubscribeMessage` 成功后调 `bindUser.grant`，`users.quota + 1`
+
+**库存与复诊提示**
+
+- `medLog.today` 额外返回 `alerts`：库存不足 3 天用量、7 天内复诊
+- 子女首页「长辈今天」卡片顶部橙色提示，多条逐行展示；不做云端推送
+- 长辈端 `medLog.today` 条目新增 `missed`：已漏服且未确认的显示红色「漏服」标签，仍可补点「已吃药」
+
+**历史执行记录**
+
+- 云函数 `medLog` 新增 `history`：按 `dateKey`（默认今天，校验 `YYYY-MM-DD`）返回当天有记录的条目
+- 历史直接读取 `med_logs` 快照（`taken` / `missed`），不推测当天计划，药品删除后记录仍保留
+- 新页面 `pages/care-history/care-history`：日期选择（不晚于今天）+ 汇总 + 逐条状态；子女首页卡片底部「查看历史记录」进入
+
+**额度说明**
+
+- 长辈提醒额度与子女漏服通知额度都落在各自的 `users.quota`，互不影响；V1 `reminder_plans.quota` 不变
+- 一次订阅授权仍只够一条消息，因此设置页展示「补充一次通知额度」
+
+**已知限制**
+
+- 漏服判定依赖 5 分钟边界的定时执行；云函数偶发延迟超过窗口时可能漏判（不在当天补判）
+- 漏服通知与提醒一样消耗一次订阅授权额度，需要子女在设置页自行补充
 
 
