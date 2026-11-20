@@ -842,4 +842,13 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 - 同步清理 `careAlerts` 数据字段、`goCareHistory / goCareStats` 方法与相关样式
 - `pages/care-history` 与 `pages/care-stats` 暂保留但无入口，后续如需可从其他位置接入
 
+### 12.16 日历文件改为发送给长辈
+
+- 「设置日历提醒」的日历文件不再用于子女手机，改为通过 `wx.shareFileMessage` 转发到父母微信
+- 页面步骤与发送成功提示改为「父母点开文件 → 用其他应用打开 → 日历」
+- 新增「复制导入步骤发给父母」，便于子女直接粘贴到聊天
+- 「取消日历提醒」说明改为在父母手机上删除「到时吃药」日历，并注明小程序无法远程删除
+- 「调整三餐时间 / 调整起居时间」改名为「调整父母三餐时间 / 调整父母起居时间」
+- 移除不再使用的 `ics.copyToClipboard`，日历经剪贴板导入的旧路径下线
+
 

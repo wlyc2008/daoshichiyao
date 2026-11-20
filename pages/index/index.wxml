@@ -213,7 +213,7 @@
     </view>
 
     <view wx:if="{{hasMeds && (!icsExported || icsOutdated)}}" class="card banner">
-      <view class="banner-text">{{icsOutdated ? '用药时间已变更，日历里的提醒还是旧时间' : '还没同步到手机日历，关掉微信后可能收不到提醒'}}</view>
+      <view class="banner-text">{{icsOutdated ? '用药时间已变更，父母日历里的提醒还是旧时间' : '还没把日历文件发给父母，关掉微信后可能收不到提醒'}}</view>
       <view class="link" hover-class="tap-hover" bindtap="goSettings">{{icsOutdated ? '重新设置' : '去设置'}}</view>
     </view>
 

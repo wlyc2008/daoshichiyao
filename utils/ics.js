@@ -1,5 +1,5 @@
 /**
- * 日历兜底：生成标准 .ics 文本并写入剪贴板
+ * 日历兜底：生成标准 .ics 文件，由子女转发给长辈导入手机日历
  * 说明：小程序被关闭后无法定时提醒，系统日历是唯一可靠的到点响铃手段
  * 采用「本地浮动时间」，由手机日历按所在时区解释，不做 UTC 转换
  */
@@ -128,18 +128,7 @@ function buildSignature(meds, mealTimes) {
     .join('|');
 }
 
-/** 写入剪贴板，供用户粘贴到手机日历的导入入口 */
-function copyToClipboard(text) {
-  return new Promise((resolve, reject) => {
-    wx.setClipboardData({
-      data: String(text || ''),
-      success: () => resolve(true),
-      fail: (err) => reject(err)
-    });
-  });
-}
-
-/** 把 ICS 写成文件，便于发给手机后用日历应用打开 */
+/** 把 ICS 写成文件，便于转发给长辈后用日历应用打开 */
 function saveIcsFile(text, fileName) {
   return new Promise((resolve, reject) => {
     const fs = wx.getFileSystemManager();
@@ -158,7 +147,6 @@ function saveIcsFile(text, fileName) {
 module.exports = {
   buildIcs,
   buildSignature,
-  copyToClipboard,
   saveIcsFile,
   escapeText
 };

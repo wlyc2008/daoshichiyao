@@ -4,8 +4,8 @@
     <view wx:if="{{!hasMeds}}" class="empty">还没有药品，请先添加</view>
     <view wx:for="{{items}}" wx:key="text" class="plan-row">{{item.text}}</view>
     <view class="foot-links">
-      <view class="link" hover-class="tap-hover" bindtap="goMealTimes">调整三餐时间</view>
-      <view class="link" hover-class="tap-hover" bindtap="goRoutineTimes">调整起居时间</view>
+      <view class="link" hover-class="tap-hover" bindtap="goMealTimes">调整父母三餐时间</view>
+      <view class="link" hover-class="tap-hover" bindtap="goRoutineTimes">调整父母起居时间</view>
     </view>
   </view>
 
