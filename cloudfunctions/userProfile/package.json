@@ -1,0 +1,9 @@
+{
+  "name": "userProfile",
+  "version": "2.0.0",
+  "description": "登记与读取用户身份（users 集合）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

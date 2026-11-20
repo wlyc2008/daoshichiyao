@@ -54,9 +54,35 @@ function fetchStatus() {
   }).then((res) => res.result || {});
 }
 
+/**
+ * 登记 / 读取用户身份（users 集合）
+ * @param {string} role 'caregiver' | 'caree'
+ */
+function registerProfile(role) {
+  if (!init()) {
+    return Promise.reject(new Error('云开发未配置'));
+  }
+  return wx.cloud.callFunction({
+    name: 'userProfile',
+    data: { action: 'setRole', role: role }
+  }).then((res) => res.result || {});
+}
+
+function fetchProfile() {
+  if (!init()) {
+    return Promise.reject(new Error('云开发未配置'));
+  }
+  return wx.cloud.callFunction({
+    name: 'userProfile',
+    data: { action: 'get' }
+  }).then((res) => res.result || {});
+}
+
 module.exports = {
   init: init,
   isEnabled: isEnabled,
   syncPlan: syncPlan,
-  fetchStatus: fetchStatus
+  fetchStatus: fetchStatus,
+  registerProfile: registerProfile,
+  fetchProfile: fetchProfile
 };

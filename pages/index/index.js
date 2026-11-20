@@ -5,6 +5,7 @@ const date = require('../../utils/date');
 const ics = require('../../utils/ics');
 const medSchedule = require('../../utils/medSchedule');
 const planSync = require('../../utils/planSync');
+const role = require('../../utils/role');
 
 const WEEK_TEXT = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -58,6 +59,8 @@ function monthDay(dateKey) {
 
 Page({
   data: {
+    userRole: '',
+    roleLabel: '',
     today: '',
     hasMeds: false,
     medsList: [],
@@ -77,11 +80,58 @@ Page({
   },
 
   onShow() {
+    this.loadRole();
+  },
+
+  /** 读取本地身份；未选择时停留在身份选择页 */
+  loadRole() {
+    const current = role.getRole();
+    this.setData({
+      userRole: current,
+      roleLabel: role.roleText(current),
+      today: todayText()
+    });
+    if (current === 'caregiver') {
+      this.initApp();
+    } else {
+      this.stopTimer();
+    }
+  },
+
+  initApp() {
     this.refresh();
     this.startTimer();
     this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
+  },
+
+  onChooseRole(e) {
+    const next = e.currentTarget.dataset.role;
+    if (!role.roleText(next)) return;
+    role.setRole(next);
+    this.setData({ userRole: next, roleLabel: role.roleText(next) });
+    if (next === 'caregiver') this.initApp();
+  },
+
+  /** 顶部身份标签点按可切换，避免选错后无法回退 */
+  onSwitchRole() {
+    const isCaregiver = this.data.userRole === 'caregiver';
+    wx.showModal({
+      title: '切换身份',
+      content: isCaregiver ? '切换为「长辈」身份？首页将只保留提醒与确认。' : '切换为「子女」身份？可以管理父母的用药计划。',
+      confirmText: '切换',
+      confirmColor: '#2E7D32',
+      success: (res) => {
+        if (!res.confirm) return;
+        const next = isCaregiver ? 'caree' : 'caregiver';
+        role.setRole(next);
+        this.setData({ userRole: next, roleLabel: role.roleText(next) });
+        this.stopTimer();
+        this.setData({ due: null });
+        if (next === 'caregiver') this.initApp();
+      }
+    });
   },
 
   onHide() {

@@ -4,6 +4,7 @@
  */
 module.exports = {
   MEDS: 'MEDS',
+  USER_ROLE: 'USER_ROLE',
   MEAL_TIMES: 'MEAL_TIMES',
   ROUTINE_TIMES: 'ROUTINE_TIMES',
   DOSE_LOGS: 'DOSE_LOGS',

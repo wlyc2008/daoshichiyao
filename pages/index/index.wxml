@@ -1,88 +1,142 @@
 <view class="page">
-  <!-- 顶部重要提示：复诊倒计时 / 库存不足，滚动字幕 -->
-  <view wx:if="{{alertText}}" class="alert-bar">
-    <view class="alert-tag">重要提示</view>
-    <view class="alert-viewport">
-      <view class="alert-track" style="animation-duration: {{alertDuration}}s">{{alertText}}</view>
+  <!-- 首次进入：选择使用身份 -->
+  <block wx:if="{{!userRole}}">
+    <view class="intro">
+      <view class="intro-title">到时吃药</view>
+      <view class="intro-sub">家人之间互相照护：子女登记药品与提醒，长辈按时收到提醒。</view>
     </view>
-  </view>
 
-  <view class="hero">
-    <view class="hero-date">{{today}}</view>
-    <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
-  </view>
+    <view class="card">
+      <view class="section-title">请选择使用身份</view>
 
-  <!-- 上块：用药清单 -->
-  <view class="card">
-    <view class="section-title">用药清单</view>
-
-    <view wx:if="{{medsList.length === 0}}" class="empty-text">还没有添加药品，请到「设置」→「药品管理」中添加</view>
-
-    <view
-      wx:for="{{medsList}}"
-      wx:key="id"
-      class="med-item {{item.isActive === false ? 'inactive' : ''}}"
-    >
-      <view class="med-head">
-        <view class="med-name">{{item.name}}</view>
-        <view class="tag {{item.isActive === false ? 'tag-danger' : 'tag-done'}}">{{item.statusText}}</view>
+      <view class="role-card" hover-class="tap-hover" data-role="caregiver" bindtap="onChooseRole">
+        <view class="role-head">
+          <view class="role-title">我是子女</view>
+          <view class="tag tag-done">管理者</view>
+        </view>
+        <view class="role-text">为父母登记药品、设置提醒时间，随时了解父母是否按时服药</view>
       </view>
-      <view class="med-meta">{{item.ruleText}} · 一日{{item.times}}次 · 每次 {{item.dose}}{{item.unit}}</view>
-      <view class="med-meta {{item.needRefill ? 'danger-text' : ''}}">库存 {{item.remainingPills}} {{item.unit}}，可用 {{item.daysText}}</view>
-    </view>
-  </view>
 
-  <!-- 中块：24小时服药 -->
-  <view class="card">
-    <view class="section-title">24小时服药</view>
-
-    <view wx:if="{{todayTotal > 0}}" class="summary">
-      <view class="summary-main">今天 {{todayDone}}/{{todayTotal}} 次</view>
-      <view class="summary-sub {{allDone ? 'done' : ''}}">{{allDone ? '今天的药都吃完了' : '还需 ' + todayRemaining + ' 次'}}</view>
+      <view class="role-card" hover-class="tap-hover" data-role="caree" bindtap="onChooseRole">
+        <view class="role-head">
+          <view class="role-title">我是长辈</view>
+          <view class="tag tag-pending">接收提醒</view>
+        </view>
+        <view class="role-text">收到家人发来的提醒后，按一下「已吃药」就行，不用自己设置</view>
+      </view>
     </view>
 
-    <view wx:if="{{todayTotal === 0}}" class="empty-text">添加药品后，这里会显示今天的服药安排</view>
+    <view class="privacy">选择后可在首页右上角随时切换身份</view>
+  </block>
 
-    <block wx:else>
-      <view class="hours-grid">
-        <view wx:for="{{hours}}" wx:key="hour" class="hour-cell">
-          <view class="hour-dot {{item.statusClass}}">{{item.hour}}</view>
-          <view class="hour-meds">
-            <view wx:for="{{item.names}}" wx:for-item="medName" wx:key="*this" class="hour-med">{{medName}}</view>
+  <!-- 长辈：等待家人发送关怀邀请 -->
+  <block wx:elif="{{userRole === 'caree'}}">
+    <view class="hero">
+      <view class="hero-date">{{today}}</view>
+      <view class="hero-actions">
+        <view class="hero-role" hover-class="tap-hover" bindtap="onSwitchRole">{{roleLabel}} · 切换</view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">等待家人的提醒</view>
+      <view class="empty-text">请让子女在小程序里点击「发送给父母」，把提醒卡片转发到您的微信。</view>
+      <view class="empty-text wait-hint">收到卡片后点开即可完成绑定，之后到点会自动提醒您吃药。</view>
+    </view>
+
+    <view class="privacy">如您想自己记录用药，可在右上角切换为「子女」身份</view>
+  </block>
+
+  <!-- 子女：原有首页 -->
+  <block wx:else>
+    <!-- 顶部重要提示：复诊倒计时 / 库存不足，滚动字幕 -->
+    <view wx:if="{{alertText}}" class="alert-bar">
+      <view class="alert-tag">重要提示</view>
+      <view class="alert-viewport">
+        <view class="alert-track" style="animation-duration: {{alertDuration}}s">{{alertText}}</view>
+      </view>
+    </view>
+
+    <view class="hero">
+      <view class="hero-date">{{today}}</view>
+      <view class="hero-actions">
+        <view class="hero-role" hover-class="tap-hover" bindtap="onSwitchRole">{{roleLabel}} · 切换</view>
+        <view class="hero-settings" hover-class="tap-hover" bindtap="goSettings">设置</view>
+      </view>
+    </view>
+
+    <!-- 上块：用药清单 -->
+    <view class="card">
+      <view class="section-title">用药清单</view>
+
+      <view wx:if="{{medsList.length === 0}}" class="empty-text">还没有添加药品，请到「设置」→「药品管理」中添加</view>
+
+      <view
+        wx:for="{{medsList}}"
+        wx:key="id"
+        class="med-item {{item.isActive === false ? 'inactive' : ''}}"
+      >
+        <view class="med-head">
+          <view class="med-name">{{item.name}}</view>
+          <view class="tag {{item.isActive === false ? 'tag-danger' : 'tag-done'}}">{{item.statusText}}</view>
+        </view>
+        <view class="med-meta">{{item.ruleText}} · 一日{{item.times}}次 · 每次 {{item.dose}}{{item.unit}}</view>
+        <view class="med-meta {{item.needRefill ? 'danger-text' : ''}}">库存 {{item.remainingPills}} {{item.unit}}，可用 {{item.daysText}}</view>
+      </view>
+    </view>
+
+    <!-- 中块：24小时服药 -->
+    <view class="card">
+      <view class="section-title">24小时服药</view>
+
+      <view wx:if="{{todayTotal > 0}}" class="summary">
+        <view class="summary-main">今天 {{todayDone}}/{{todayTotal}} 次</view>
+        <view class="summary-sub {{allDone ? 'done' : ''}}">{{allDone ? '今天的药都吃完了' : '还需 ' + todayRemaining + ' 次'}}</view>
+      </view>
+
+      <view wx:if="{{todayTotal === 0}}" class="empty-text">添加药品后，这里会显示今天的服药安排</view>
+
+      <block wx:else>
+        <view class="hours-grid">
+          <view wx:for="{{hours}}" wx:key="hour" class="hour-cell">
+            <view class="hour-dot {{item.statusClass}}">{{item.hour}}</view>
+            <view class="hour-meds">
+              <view wx:for="{{item.names}}" wx:for-item="medName" wx:key="*this" class="hour-med">{{medName}}</view>
+            </view>
           </view>
         </view>
-      </view>
 
-      <view class="hours-legend">
-        <view class="legend-item"><view class="legend-dot dot-done"></view>已服用</view>
-        <view class="legend-item"><view class="legend-dot dot-pending"></view>待服用</view>
-        <view class="legend-item"><view class="legend-dot dot-none"></view>无服药</view>
-      </view>
-    </block>
-  </view>
+        <view class="hours-legend">
+          <view class="legend-item"><view class="legend-dot dot-done"></view>已服用</view>
+          <view class="legend-item"><view class="legend-dot dot-pending"></view>待服用</view>
+          <view class="legend-item"><view class="legend-dot dot-none"></view>无服药</view>
+        </view>
+      </block>
+    </view>
 
-  <!-- 下块：临期服药提醒 -->
-  <view class="card">
-    <view class="section-title">临期服药提醒</view>
+    <!-- 下块：临期服药提醒 -->
+    <view class="card">
+      <view class="section-title">临期服药提醒</view>
 
-    <view wx:if="{{nextDose.length === 0}}" class="empty-text">暂无后续服药安排</view>
+      <view wx:if="{{nextDose.length === 0}}" class="empty-text">暂无后续服药安排</view>
 
-    <block wx:else>
-      <view class="next-time">{{nextDoseTime}}</view>
-      <view class="next-hint">{{nextDoseHint}}</view>
-      <view wx:for="{{nextDose}}" wx:key="medId" class="next-row">
-        <view class="next-name">{{item.name}}</view>
-        <view class="next-dose">{{item.doseText}}</view>
-      </view>
-    </block>
-  </view>
+      <block wx:else>
+        <view class="next-time">{{nextDoseTime}}</view>
+        <view class="next-hint">{{nextDoseHint}}</view>
+        <view wx:for="{{nextDose}}" wx:key="medId" class="next-row">
+          <view class="next-name">{{item.name}}</view>
+          <view class="next-dose">{{item.doseText}}</view>
+        </view>
+      </block>
+    </view>
 
-  <view wx:if="{{hasMeds && (!icsExported || icsOutdated)}}" class="card banner">
-    <view class="banner-text">{{icsOutdated ? '用药时间已变更，日历里的提醒还是旧时间' : '还没同步到手机日历，关掉微信后可能收不到提醒'}}</view>
-    <view class="link" hover-class="tap-hover" bindtap="goSettings">{{icsOutdated ? '重新设置' : '去设置'}}</view>
-  </view>
+    <view wx:if="{{hasMeds && (!icsExported || icsOutdated)}}" class="card banner">
+      <view class="banner-text">{{icsOutdated ? '用药时间已变更，日历里的提醒还是旧时间' : '还没同步到手机日历，关掉微信后可能收不到提醒'}}</view>
+      <view class="link" hover-class="tap-hover" bindtap="goSettings">{{icsOutdated ? '重新设置' : '去设置'}}</view>
+    </view>
 
-  <view class="privacy">照片与用药记录只保存在本机；微信提醒会同步到云端，仅用于发送提醒</view>
+    <view class="privacy">照片与用药记录只保存在本机；微信提醒会同步到云端，仅用于发送提醒</view>
+  </block>
 
   <dose-confirm-mask
     id="doseMask"

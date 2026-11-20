@@ -68,6 +68,24 @@
   padding: 16rpx 8rpx 32rpx;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* 身份标签：可点按切换，弱化处理，不与「设置」抢视觉 */
+.hero-role {
+  height: 72rpx;
+  line-height: 72rpx;
+  padding: 0 20rpx;
+  margin-right: 16rpx;
+  box-sizing: border-box;
+  font-size: var(--font-xs);
+  color: var(--color-text-weak);
+  border-radius: var(--radius-pill);
+  background: var(--color-card);
+}
+
 .hero-settings {
   min-width: 140rpx;
   height: 88rpx;
@@ -225,4 +243,58 @@
   font-size: var(--font-sm);
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+/* ========== 身份选择（2.0） ========== */
+.intro {
+  padding: 48rpx 8rpx 32rpx;
+}
+
+.intro-title {
+  font-size: var(--font-h1);
+  font-weight: bold;
+  letter-spacing: 2rpx;
+}
+
+.intro-sub {
+  margin-top: 16rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.7;
+}
+
+.role-card {
+  padding: 28rpx 24rpx;
+  border: 2rpx solid var(--color-border);
+  border-radius: var(--radius-card);
+  margin-bottom: 20rpx;
+}
+
+.role-card:active {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+}
+
+.role-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.role-title {
+  font-size: var(--font-h2);
+  font-weight: bold;
+}
+
+.role-text {
+  margin-top: 12rpx;
+  font-size: var(--font-sm);
+  color: var(--color-text-weak);
+  line-height: 1.6;
+}
+
+.wait-hint {
+  margin-top: 16rpx;
+  color: var(--color-text-hint);
+  font-size: var(--font-sm);
 }
