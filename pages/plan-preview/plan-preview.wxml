@@ -11,8 +11,12 @@
 
   <view class="card">
     <view class="section-title">微信提醒</view>
-    <view class="hint">开启后，到点会收到微信服务通知。需要在关掉微信后也能响铃，请用「设置」里的「设置日历提醒」。</view>
-    <view wx:if="{{syncText}}" class="notice {{syncStale ? 'notice-warn' : ''}}">{{syncText}}</view>
-    <button class="btn-primary" bindtap="requestSubscribe">开启微信提醒</button>
+    <view class="hint">提交后由云端按计划时间推送，只发送到父母手机。请先绑定父母，并让父母允许微信通知。</view>
+
+    <view class="notice {{statusWarn ? 'notice-warn' : ''}}">{{statusText}}</view>
+
+    <button class="btn-primary" bindtap="onOpenReminder" disabled="{{submitting}}">{{submitting ? '正在提交…' : '开启微信提醒'}}</button>
+    <button class="btn-secondary" bindtap="copyGuide">复制开启步骤发给父母</button>
+    <button class="btn-secondary" bindtap="goFamily">去亲情提醒查看绑定</button>
   </view>
 </view>

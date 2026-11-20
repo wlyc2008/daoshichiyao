@@ -64,7 +64,7 @@ git diff v1.0.0 v2.0
    - 药品保存、补货、停用、删除后立即触发同步，不必等回到首页
    - 绑定/解绑后首页强制重写计划，保证 `med_plans.targetId` 最新
    - `sendDue` 保留 V1 逻辑，并行按 targetId 推给长辈：跳过暂停、解绑、额度耗尽
-   - 长辈授权额度落在 `users.quota`：`accept` / `resume` +1，发送成功 -1
+   - 长辈授权额度落在 `users.quota`：`accept` / `resume` / `renew` +1，发送成功 -1
 7. **服药确认（Phase 4）**：
    - 云函数 `medLog`：`today` 按角色返回今日用药，`confirm` 写 `med_logs` 并扣减云端库存
    - 长辈首页「今天的用药」：点「已吃药」即记录，进度即时刷新
@@ -94,6 +94,15 @@ git diff v1.0.0 v2.0
    - 「设置日历提醒」不再导入到子女手机，改为生成 `.ics` 并转发给父母
    - 页面内置导入步骤与「复制导入步骤发给父母」，取消说明也改为父母手机操作
    - 「调整三餐时间 / 调整起居时间」统一改名为「调整父母三餐时间 / 调整父母起居时间」
+13. **微信提醒只发给父母**：
+   - 子女端「微信提醒」页取消订阅与 V1 计划写入，「开启微信提醒」改为强制提交当前计划到云端
+   - 未绑定父母时引导去亲情提醒页；父母未授权时提示让父母点「重新开启」
+   - 子女首页 24 小时服药图改用长辈云端记录，过点未服标红「超时未服」，每 2 分钟同步一次
+   - 子女仍可单独授权「漏服通知」，额度与用药提醒互不影响
+14. **确认服药时续订提醒**：
+   - 长辈点「已吃药」时先申请订阅授权，再写服药记录
+   - 授权成功后调用 `bindUser` 的 `renew` 给额度 +1，保证下一条提醒能送达
+   - 拒绝授权不影响服药记录；重复确认不会重复加额度
 
 ---
 
@@ -109,13 +118,13 @@ git diff v1.0.0 v2.0
 | `pages/care-stats/care-stats.js` | 子女端本周统计：完成率、应服/已服/漏服、每天趋势 |
 | `pages/restore/restore.js` | 换机恢复：读取云端备份、二次确认、覆盖本机并重启 |
 | `pages/privacy/privacy.js` | 隐私说明：收集范围、照片、云端数据、订阅消息与医疗声明 |
-| `utils/bind.js` | 绑定接口封装：`createInvite / peek / acceptInvite / pause / resume / grant / unbind / fetchStatus` |
+| `utils/bind.js` | 绑定接口封装：`createInvite / peek / acceptInvite / pause / resume / renew / grant / unbind / fetchStatus` |
 | `utils/role.js` | 身份读写（本地 + 云端登记） |
 | `utils/cloud.js` | 云开发封装，含通用 `callFunction` |
 | `utils/planSync.js` | 计划上云：V1 `reminder_plans` + V2 `med_plans` 双指纹同步 |
 | `utils/backup.js` | 备份与恢复封装：`collect / save / info / fetchBackup / apply / restore` |
 | `utils/medLog.js` | 今日用药读取、历史记录与「已吃药」确认封装 |
-| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / grant / unbind`，并维护双方 `quota` |
+| `cloudfunctions/bindUser/index.js` | `create / peek / accept / status / pause / resume / renew / grant / unbind`，并维护双方 `quota` |
 | `cloudfunctions/syncMedPlans/index.js` | 按 `ownerId + medId` upsert `med_plans`，删除本地已移除的计划 |
 | `cloudfunctions/sendDue/index.js` | 定时推送：V1 计划 + `med_plans` 按 targetId 推给长辈；强力模式漏服 Watchdog |
 | `cloudfunctions/medLog/index.js` | `today` 今日用药与库存/复诊提示、`confirm` 写 `med_logs`、`history` 历史记录、`stats` 完成率周报 |
@@ -157,6 +166,9 @@ git diff v1.0.0 v2.0
 - 已绑定时可「开启漏服通知 / 补充一次通知额度」，额度展示在卡片内
 - 首页不再展示「长辈今天」模块，子女端只保留绑定状态栏与本地用药清单
 - 「设置日历提醒」：生成 `.ics` 后在微信里选择父母的聊天发送；页面与取消说明都按「父母手机上操作」描述
+- 「微信提醒」页只展示父母授权状态与「复制开启步骤发给父母」；子女端不再订阅，也不会收到用药提醒
+- 首页「24 小时服药」图使用长辈的云端记录，过点未服显示红色「超时未服」，父母确认后自动更新
+- 长辈点「已吃药」时同时申请下一条提醒的订阅授权，云端额度 +1；拒绝不影响服药记录
 - 设置页「数据与云服务」：备份到云端 / 从云端恢复 / 导出备份到剪贴板 / 检查云端状态
 - 设置页「关于」：隐私说明；身份选择页也有隐私说明入口
 - 邀请码仅在未绑定时生成，首页不再预生成

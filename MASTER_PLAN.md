@@ -218,9 +218,12 @@
 
 ```js
 {
-  onboarded: false,        // 首次配置是否完成
-  icsExportedAt: "",       // 最近一次日历导出时间
-  subscribeRequestedAt: "" // 最近一次订阅消息授权时间
+  icsExportedAt: "",       // 最近一次日历文件发送时间
+  icsSignature: "",        // 日历计划指纹
+  planSignature: "",       // 旧 V1 计划指纹（仅用于迁移清理）
+  medPlanSignature: "",    // 长辈计划指纹
+  boundTargetId: "",       // 当前绑定的长辈 openid
+  v1Cleared: false         // 是否已清理旧的 V1 提醒计划
 }
 ```
 
@@ -838,7 +841,7 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 ### 12.15 子女首页精简
 
 - 移除子女首页「长辈今天」整块：完成进度、逐条状态、库存/复诊提示、本周统计与历史记录入口
-- 子女端不再调用 `medLog.today`，减少首页云函数请求；长辈端「今天的用药」保持不变
+- 子女端不再单独展示「长辈今天」，改为把长辈的云端记录并入首页 24 小时服药图（见 12.17）
 - 同步清理 `careAlerts` 数据字段、`goCareHistory / goCareStats` 方法与相关样式
 - `pages/care-history` 与 `pages/care-stats` 暂保留但无入口，后续如需可从其他位置接入
 
@@ -850,5 +853,26 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 - 「取消日历提醒」说明改为在父母手机上删除「到时吃药」日历，并注明小程序无法远程删除
 - 「调整三餐时间 / 调整起居时间」改名为「调整父母三餐时间 / 调整父母起居时间」
 - 移除不再使用的 `ics.copyToClipboard`，日历经剪贴板导入的旧路径下线
+
+### 12.17 微信提醒只发给父母
+
+- 子女端「微信提醒」页不再调用 `wx.requestSubscribeMessage`，也不再给子女的 `reminder_plans` 增加授权额度
+- 「开启微信提醒」按钮：强制把当前计划同步到云端；未绑定父母时引导去亲情提醒页
+- 提交后按父母授权状态提示：已授权则到点推送；未授权则提醒让父母点「重新开启」
+- 微信订阅消息只能由接收人本人在自己手机上授权，子女无法代授权；父母端在绑定/恢复时授权
+- 子女首页 24 小时服药图改用 `medLog.today` 的长辈记录；过计划时间且未服用的格子标红「超时未服」
+- 首页每 2 分钟同步一次长辈记录（页面可见时），父母确认后子女端能及时看到
+- `planSync` 停用 V1 自提醒同步：首次同步时调用 `syncPlan([], 0)` 清空旧的 `reminder_plans`，并写入 `v1Cleared`
+- `sendDue` 中 V1 推送逻辑保留，仅用于兼容尚未升级的旧客户端
+- 子女仍可收到「漏服通知」，该额度由亲情提醒页单独授权，与用药提醒互不影响
+
+### 12.18 确认服药时续订下一条提醒
+
+- 一次性订阅每条授权只能下发一条消息，改为在长辈点「已吃药」时顺带续订
+- 客户端：`onConfirmTaken` 在同一次点击中先调 `wx.requestSubscribeMessage`，回调里再写服药记录
+- 授权为 `accept` 且不是重复确认时，调用 `bindUser` 的 `renew` 动作把 `users.quota` 加 1
+- 云函数：新增 `renew`，仅允许已绑定的长辈调用，只加额度并更新 `notifyState/notifyAt`，不改变 `notifyPaused`
+- 拒绝授权不影响服药记录，只提示「已记录，提醒未续订」
+- 重复确认不会重复加额度，避免同一条提醒被刷出多条
 
 

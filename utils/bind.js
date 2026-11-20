@@ -59,6 +59,14 @@ function resume(notifyState) {
   });
 }
 
+/** 长辈确认服药时续订一条提醒额度 */
+function renew() {
+  return cloud.callFunction('bindUser', { action: 'renew' }).then((res) => {
+    if (!res.ok) throw new Error(res.msg || '续订失败');
+    return res;
+  });
+}
+
 /** 子女端：为「漏服通知」申请一条发送额度 */
 function grant(notifyState) {
   return cloud.callFunction('bindUser', {
@@ -87,6 +95,7 @@ module.exports = {
   acceptInvite,
   pause,
   resume,
+  renew,
   grant,
   unbind,
   fetchStatus

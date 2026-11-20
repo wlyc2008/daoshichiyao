@@ -178,6 +178,12 @@
   color: #FFFFFF;
 }
 
+/* 过点未服：红色实心，便于子女一眼看到 */
+.dot-missed {
+  background: var(--color-danger);
+  color: #FFFFFF;
+}
+
 .dot-none {
   background: var(--color-placeholder);
   color: var(--color-text-hint);

@@ -10,16 +10,6 @@
   </view>
 
   <view class="card">
-    <view class="section-title">日历提醒</view>
-    <view class="hint">到点响铃由父母手机的系统日历负责，关掉微信也能提醒。</view>
-
-    <view class="steps">
-      <view class="step">1. 点击下方按钮，在微信里选择父母的聊天发送日历文件</view>
-      <view class="step">2. 提醒父母点开文件，选择「用其他应用打开」→ 日历</view>
-      <view class="step">3. 建议导入到名为「到时吃药」的专用日历</view>
-      <view class="step">4. 以后改时间或取消，删除该日历即可一次清空</view>
-    </view>
-
     <view wx:if="{{exportedText}}" class="notice {{exportedStale ? 'notice-warn' : ''}}">{{exportedText}}</view>
 
     <button class="btn-primary" bindtap="exportCalendar">发送日历文件给父母</button>

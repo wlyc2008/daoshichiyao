@@ -1,24 +1,13 @@
 /**
  * 云端提醒计划同步
- * V1：reminder_plans，按本机时刻表推送给自己
- * V2：med_plans，按 targetId 推送给已绑定的长辈
+ * V1 reminder_plans 已停用：首次同步时清空旧数据，避免子女端收到用药提醒
+ * V2 med_plans：按 targetId 推送给已绑定的长辈
  * 仅在计划指纹变化时写入云端，避免每次进入页面都占用云函数额度
  */
 const storage = require('./storage');
 const reminder = require('./reminder');
-const ics = require('./ics');
 const cloud = require('./cloud');
 const date = require('./date');
-
-/** 云端计划项：与 syncPlan 云函数约定的结构一致 */
-function buildItems() {
-  return reminder.buildSchedule(storage.getMeds(), storage.getMealTimes(), new Date()).map((item) => ({
-    time: item.time,
-    name: item.name,
-    dose: item.dose,
-    unit: item.unit || '片'
-  }));
-}
 
 /** 单个药品的每日提醒时刻，已停用药品也保留时刻，便于云端标记 stopped */
 function timesOfMed(med) {
@@ -76,15 +65,15 @@ function syncIfChanged(force) {
   if (!cloud.isEnabled()) return Promise.resolve(false);
 
   const settings = storage.getSettings();
-  const signature = ics.buildSignature(storage.getMeds(), storage.getMealTimes());
   const plans = buildPlans();
   const planSignature = buildPlanSignature(plans);
 
   const tasks = [];
-  if (force || settings.planSignature !== signature) {
-    tasks.push(cloud.syncPlan(buildItems(), 0).then(() => {
-      storage.setSettings({ planSignature: signature });
-    }));
+  // 老版本会把自己的提醒计划写到 V1 reminder_plans，升级后清空一次
+  if (!settings.v1Cleared) {
+    tasks.push(cloud.syncPlan([], 0).then(() => {
+      storage.setSettings({ planSignature: '', v1Cleared: true });
+    }).catch(() => {}));
   }
   if (force || settings.medPlanSignature !== planSignature) {
     tasks.push(cloud.callFunction('syncMedPlans', { plans: plans }).then((res) => {
@@ -104,13 +93,12 @@ function clearCloudPlan() {
     cloud.syncPlan([], 0),
     cloud.callFunction('syncMedPlans', { plans: [] })
   ]).then(() => {
-    storage.setSettings({ planSignature: '', medPlanSignature: '' });
+    storage.setSettings({ planSignature: '', medPlanSignature: '', v1Cleared: true });
     return true;
   }).catch(() => false);
 }
 
 module.exports = {
-  buildItems,
   buildPlans,
   buildPlanSignature,
   syncIfChanged,

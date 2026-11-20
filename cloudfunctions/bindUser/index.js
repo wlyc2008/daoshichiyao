@@ -189,6 +189,25 @@ async function resumeNotify(openid, rawNotifyState) {
 }
 
 /**
+ * 长辈确认服药时续订下一条提醒
+ * 只补一条额度，不改变暂停状态，避免「确认一次药」就悄悄恢复接收
+ */
+async function renewQuota(openid) {
+  const user = await findUser(openid);
+  if (!user) return { ok: false, msg: '用户不存在' };
+  if (user.role !== 'caree' || !user.linkedId) {
+    return { ok: false, msg: '请先绑定家人的提醒' };
+  }
+
+  await updateUser(user, {
+    quota: _.inc(1),
+    notifyState: 'accept',
+    notifyAt: Date.now()
+  });
+  return { ok: true };
+}
+
+/**
  * 子女端：为「漏服通知」申请额度
  * 与长辈的提醒额度共用 users.quota，但各自落在自己的用户文档上，互不影响
  */
@@ -287,6 +306,7 @@ exports.main = async (event) => {
   if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState);
   if (action === 'pause') return pauseNotify(OPENID);
   if (action === 'resume') return resumeNotify(OPENID, event.notifyState);
+  if (action === 'renew') return renewQuota(OPENID);
   if (action === 'grant') return grantCareNotify(OPENID, event.notifyState);
   if (action === 'unbind') return unbindUser(OPENID);
   return getStatus(OPENID);

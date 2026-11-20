@@ -27,11 +27,11 @@ const DEFAULT_ROUTINE_TIMES = { wake: '06:30', nap: '13:00', bedtime: '21:30' };
 const DEFAULT_SETTINGS = {
   icsExportedAt: '',
   icsSignature: '',
-  subscribeRequestedAt: '',
-  wechatSignature: '',
   planSignature: '',
   medPlanSignature: '',
-  boundTargetId: ''
+  boundTargetId: '',
+  // 升级到 V2 后清理一次旧的 V1 提醒计划
+  v1Cleared: false
 };
 
 /** 生成唯一 ID：时间戳 + 三位随机数，避免同一毫秒内重复 */

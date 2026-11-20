@@ -62,9 +62,14 @@ function monthDay(dateKey) {
 
 /** 今日用药：补齐渲染字段，planId + time 作为列表键 */
 function decorateToday(res) {
+  const now = new Date();
+  const nowKey = (now.getHours() < 10 ? '0' + now.getHours() : String(now.getHours()))
+    + ':' + (now.getMinutes() < 10 ? '0' + now.getMinutes() : String(now.getMinutes()));
   const items = (res.items || []).map((item) => Object.assign({}, item, {
     key: item.planId + '|' + item.time,
-    doseText: item.dose + (item.unit || '片')
+    doseText: item.dose + (item.unit || '片'),
+    // 过点未服：用于首页 24 小时图标的红色标记
+    overdue: !item.taken && String(item.time) < nowKey
   }));
   return {
     careItems: items,
@@ -72,6 +77,36 @@ function decorateToday(res) {
     careDone: res.done || 0,
     careLoaded: true
   };
+}
+
+/** 用长辈的云端记录重建 24 小时服药图，过点未服的小时标红 */
+function buildCareHours(items) {
+  const hours = [];
+  for (let h = 0; h < 24; h += 1) {
+    hours.push({ hour: h, names: [], total: 0, done: 0, overdue: 0, statusClass: 'dot-none' });
+  }
+
+  (items || []).forEach((item) => {
+    const cell = hours[Number(String(item.time).split(':')[0])];
+    if (!cell) return;
+    cell.total += 1;
+    if (item.taken) cell.done += 1;
+    else if (item.overdue) cell.overdue += 1;
+    if (cell.names.indexOf(item.medName) === -1) cell.names.push(item.medName);
+  });
+
+  hours.forEach((cell) => {
+    if (cell.total === 0) cell.statusClass = 'dot-none';
+    else if (cell.overdue > 0) cell.statusClass = 'dot-missed';
+    else if (cell.done === cell.total) cell.statusClass = 'dot-done';
+    else cell.statusClass = 'dot-pending';
+  });
+
+  return hours.map((cell) => ({
+    hour: cell.hour,
+    names: cell.names,
+    statusClass: cell.statusClass
+  }));
 }
 
 /** 未绑定时清空今日用药，避免旧数据残留 */
@@ -190,29 +225,57 @@ Page({
         bindStatusText: bindStatusText
       });
       this.syncTarget(profile.linkedId || '');
+      this.loadToday();
     }).catch(() => {});
   },
 
   /** 读取今日用药：长辈读自己的，子女读长辈的 */
   loadToday() {
     medLog.fetchToday().then((res) => {
-      this.setData(decorateToday(res));
+      const patch = decorateToday(res);
+      this.setData(patch);
+      this.applyCareChart(patch);
     }).catch(() => {
       this.setData({ careLoaded: true });
     });
   },
 
-  /** 长辈点「已吃药」：写入云端记录并刷新进度 */
+  /** 子女首页的 24 小时图改用长辈的真实记录；云端无计划时保留本地视图 */
+  applyCareChart(patch) {
+    if (!patch.careTotal) return;
+    this.setData({
+      hours: buildCareHours(patch.careItems),
+      todayTotal: patch.careTotal,
+      todayDone: patch.careDone,
+      todayRemaining: patch.careTotal - patch.careDone,
+      allDone: patch.careDone === patch.careTotal
+    });
+  },
+
+  /** 长辈点「已吃药」：同时续订下一条提醒，再写入云端记录 */
   onConfirmTaken(e) {
     const planId = e.currentTarget.dataset.planId;
     const time = e.currentTarget.dataset.time;
     if (!planId || !time || this.data.careConfirming) return;
 
     this.setData({ careConfirming: planId + '|' + time });
-    medLog.confirm(planId, time).then(() => {
+
+    // 订阅授权必须在点击行为中发起；授权结果不影响本次服药记录
+    this.requestNotify((state) => this.doConfirmTaken(planId, time, state));
+  },
+
+  doConfirmTaken(planId, time, notifyState) {
+    medLog.confirm(planId, time).then((res) => {
+      // 重复确认不重复加额度，避免同一条提醒被刷出多条
+      if (notifyState === 'accept' && !(res && res.duplicate)) {
+        bind.renew().catch(() => {});
+      }
       this.setData({ careConfirming: '' });
       this.loadToday();
-      wx.showToast({ title: '已记录', icon: 'success' });
+      wx.showToast({
+        title: notifyState === 'accept' ? '已记录' : '已记录，提醒未续订',
+        icon: 'none'
+      });
     }).catch((err) => {
       this.setData({ careConfirming: '' });
       wx.showToast({ title: (err && err.message) || '记录失败，请稍后重试', icon: 'none' });
@@ -287,6 +350,10 @@ Page({
 
   /** 请求微信通知授权，回调里带回 accept / reject / ban / filter */
   requestNotify(done) {
+    if (typeof wx.requestSubscribeMessage !== 'function') {
+      done('');
+      return;
+    }
     wx.requestSubscribeMessage({
       tmplIds: [config.TEMPLATE_ID],
       success: (res) => {
@@ -397,7 +464,14 @@ Page({
 
   startTimer() {
     this.stopTimer();
-    this.timer = setInterval(() => this.checkDue(), 30000);
+    this.timer = setInterval(() => {
+      this.checkDue();
+      // 子女端每 2 分钟同步一次长辈的服药记录，及时更新 24 小时图
+      this.careTick = (this.careTick || 0) + 1;
+      if (this.data.userRole === 'caregiver' && this.data.bound && this.careTick % 4 === 0) {
+        this.loadToday();
+      }
+    }, 30000);
   },
 
   stopTimer() {
