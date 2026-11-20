@@ -78,14 +78,16 @@ Page({
     due: null,
     icsExported: true,
     icsOutdated: false,
-    inviteCode: '',
-    inviteError: '',
     bound: false,
-    boundText: '',
     typedCode: '',
     binding: false,
     bindError: '',
-    acked: false
+    acked: false,
+    notifyState: '',
+    notifyPaused: false,
+    partnerNotifyState: '',
+    partnerPaused: false,
+    bindStatusText: ''
   },
 
   onShow() {
@@ -113,46 +115,46 @@ Page({
     this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
-    this.loadInvite();
     this.loadBindStatus();
   },
 
-  /** 预先生成关怀邀请，保证「发送给父母」能一步分享出去 */
-  loadInvite() {
-    if (this.data.inviteCode || this.inviteLoading) return;
-    this.inviteLoading = true;
-    bind.createInvite().then((res) => {
-      this.setData({ inviteCode: res.code, inviteError: '' });
-    }).catch(() => {
-      this.setData({ inviteError: '暂时无法生成邀请，请检查网络后重试' });
-    }).then(() => {
-      this.inviteLoading = false;
-    });
-  },
-
-  onRetryInvite() {
-    this.setData({ inviteError: '' });
-    this.loadInvite();
-  },
-
-  /** 复制邀请码，便于当面或电话告诉父母 */
-  onCopyCode() {
-    const code = this.data.inviteCode;
-    if (!code) return;
-    wx.setClipboardData({
-      data: code,
-      success: () => wx.showToast({ title: '邀请码已复制', icon: 'none' })
-    });
-  },
-
-  /** 已绑定的长辈信息，用于告诉子女「提醒已经送达」 */
+  /** 读取绑定状态：长辈看自己的通知状态，子女看长辈的通知状态 */
   loadBindStatus() {
     bind.fetchStatus().then((res) => {
       const profile = res.profile;
       const partner = res.partner;
-      if (profile && profile.linkedId && partner) {
-        this.setData({ bound: true, boundText: partner.nickname || '长辈' });
+      if (!profile || !profile.linkedId || !partner) {
+        // 对方解除或本地缓存过期时，首页状态要跟着回退
+        this.setData({
+          bound: false,
+          bindStatusText: '',
+          partnerNotifyState: '',
+          partnerPaused: false
+        });
+        return;
       }
+
+      if (profile.role === 'caree') {
+        this.setData({
+          bound: true,
+          notifyState: profile.notifyState || '',
+          notifyPaused: !!profile.notifyPaused
+        });
+        return;
+      }
+
+      const partnerNotifyState = partner.notifyState || '';
+      const partnerPaused = !!partner.notifyPaused;
+      let bindStatusText = '已与长辈绑定';
+      if (partnerPaused) bindStatusText = '长辈已暂停接收';
+      else if (partnerNotifyState !== 'accept') bindStatusText = '长辈未开启微信通知';
+
+      this.setData({
+        bound: true,
+        partnerNotifyState: partnerNotifyState,
+        partnerPaused: partnerPaused,
+        bindStatusText: bindStatusText
+      });
     }).catch(() => {});
   },
 
@@ -161,12 +163,12 @@ Page({
     this.setData({ acked: true });
   },
 
-  /** 长辈端退出：停止接收家人设置的提醒，双方绑定一起解除 */
+  /** 长辈端彻底解除绑定：双方关系解除，需重新邀请才能恢复 */
   onCareeUnbind() {
     wx.showModal({
-      title: '不再接收提醒',
-      content: '停止后家人设置的提醒不会再发给您，家人也会看到已解除。确定要停止吗？',
-      confirmText: '停止',
+      title: '解除绑定',
+      content: '解除后您和家人都会回到未绑定状态，需要重新邀请才能恢复。确定要解除吗？',
+      confirmText: '解除',
       confirmColor: '#C62828',
       success: (res) => {
         if (!res.confirm) return;
@@ -175,8 +177,6 @@ Page({
           wx.hideLoading();
           this.setData({
             bound: false,
-            boundText: '',
-            inviteCode: '',
             typedCode: '',
             bindError: '',
             acked: false
@@ -185,29 +185,6 @@ Page({
         }).catch(() => {
           wx.hideLoading();
           wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
-        });
-      }
-    });
-  },
-
-  /** 解除与长辈的绑定，双方同时失效，之后可重新邀请 */
-  onUnbind() {
-    wx.showModal({
-      title: '解除绑定',
-      content: '解除后长辈将不再收到您设置的提醒，确定要解除吗？',
-      confirmText: '解除',
-      confirmColor: '#C62828',
-      success: (res) => {
-        if (!res.confirm) return;
-        wx.showLoading({ title: '正在解除', mask: true });
-        bind.unbind().then(() => {
-          wx.hideLoading();
-          this.setData({ bound: false, boundText: '', inviteCode: '', inviteError: '' });
-          this.loadInvite();
-          wx.showToast({ title: '已解除绑定', icon: 'none' });
-        }).catch(() => {
-          wx.hideLoading();
-          wx.showToast({ title: '解除失败，请稍后重试', icon: 'none' });
         });
       }
     });
@@ -236,18 +213,36 @@ Page({
       return;
     }
     this.setData({ binding: true, bindError: '' });
+    this.requestNotify((state) => this.doBind(code, state));
+  },
+
+  /** 请求微信通知授权，回调里带回 accept / reject / ban / filter */
+  requestNotify(done) {
     wx.requestSubscribeMessage({
       tmplIds: [config.TEMPLATE_ID],
-      // 拒绝授权也允许绑定，只是收不到微信推送
-      complete: () => this.doBind(code)
+      success: (res) => {
+        done((res && res[config.TEMPLATE_ID]) || '');
+      },
+      // 低版本或授权弹窗打不开时，按未授权处理，不阻断绑定
+      fail: () => done('')
     });
   },
 
-  doBind(code) {
-    bind.acceptInvite(code).then(() => {
+  doBind(code, notifyState) {
+    bind.acceptInvite(code, notifyState).then(() => {
       role.setRole('caree');
-      this.setData({ binding: false, bound: true, typedCode: '', inviteCode: '', acked: false });
-      wx.showToast({ title: '已开启家人的提醒', icon: 'success' });
+      this.setData({
+        binding: false,
+        bound: true,
+        typedCode: '',
+        acked: false,
+        notifyPaused: false,
+        notifyState: notifyState || ''
+      });
+      wx.showToast({
+        title: notifyState === 'accept' ? '已开启家人的提醒' : '已绑定，但通知未开启',
+        icon: 'none'
+      });
     }).catch((err) => {
       this.setData({
         binding: false,
@@ -256,12 +251,61 @@ Page({
     });
   },
 
-  onShareAppMessage() {
-    const code = this.data.inviteCode;
-    return {
-      title: '家人给您设置好吃药提醒了，点开就能用',
-      path: code ? '/pages/bind/bind?code=' + code : '/pages/bind/bind'
-    };
+  /** 未授权时重新请求，成功后写回云端 */
+  onEnableNotify() {
+    if (this.data.binding) return;
+    this.setData({ binding: true });
+    this.requestNotify((state) => {
+      bind.resume(state).then(() => {
+        this.setData({ binding: false, notifyState: state || '' });
+        wx.showToast({
+          title: state === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
+          icon: 'none'
+        });
+      }).catch(() => {
+        this.setData({ binding: false });
+        wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
+      });
+    });
+  },
+
+  /** 暂停接收：保留绑定，只停掉推送给自己的提醒 */
+  onPause() {
+    wx.showModal({
+      title: '暂停接收提醒',
+      content: '暂停后家人设置的提醒不会再推送给您，随时可以在本页恢复。',
+      confirmText: '暂停',
+      success: (res) => {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '正在处理', mask: true });
+        bind.pause().then(() => {
+          wx.hideLoading();
+          this.setData({ notifyPaused: true, acked: false });
+          wx.showToast({ title: '已暂停接收', icon: 'none' });
+        }).catch(() => {
+          wx.hideLoading();
+          wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
+        });
+      }
+    });
+  },
+
+  /** 恢复接收：重新申请微信通知授权，再恢复推送 */
+  onResume() {
+    if (this.data.binding) return;
+    this.setData({ binding: true });
+    this.requestNotify((state) => {
+      bind.resume(state).then(() => {
+        this.setData({ binding: false, notifyPaused: false, notifyState: state || '' });
+        wx.showToast({
+          title: state === 'accept' ? '已恢复接收' : '已恢复，但通知未开启',
+          icon: 'none'
+        });
+      }).catch(() => {
+        this.setData({ binding: false });
+        wx.showToast({ title: '恢复失败，请稍后重试', icon: 'none' });
+      });
+    });
   },
 
   onChooseRole(e) {

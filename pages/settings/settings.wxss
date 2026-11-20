@@ -1,5 +1,40 @@
 /* 设置页沿用 app.wxss 中的 .card / .entry / .entry.danger，无需额外样式 */
 
+/* 亲情提醒：状态行比普通条目更醒目 */
+.bind-status {
+  font-size: var(--font-body);
+  font-weight: bold;
+}
+
+.wait-hint {
+  margin-top: 16rpx;
+  color: var(--color-text-hint);
+  font-size: var(--font-sm);
+}
+
+/* 邀请码：可点按复制 */
+.invite-code {
+  margin-top: 20rpx;
+  padding: 16rpx 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-light);
+  text-align: center;
+  font-size: var(--font-sm);
+  font-weight: bold;
+  color: var(--color-primary);
+  letter-spacing: 2rpx;
+}
+
+/* 解除绑定：次要操作，弱化样式避免误触 */
+.unbind-link {
+  margin-top: 24rpx;
+  padding: 12rpx 0;
+  text-align: right;
+  font-size: var(--font-sm);
+  color: var(--color-text-hint);
+  text-decoration: underline;
+}
+
 .app-footer {
   margin: 40rpx 0 20rpx;
   text-align: center;

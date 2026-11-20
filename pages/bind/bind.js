@@ -9,7 +9,8 @@ Page({
     state: 'loading', // loading | input | ready | done | error
     errorCode: '',
     errorText: '',
-    submitting: false
+    submitting: false,
+    notifyState: ''
   },
 
   onLoad(options) {
@@ -39,19 +40,25 @@ Page({
   onConfirm() {
     if (this.data.submitting) return;
     this.setData({ submitting: true });
+    this.requestNotify((state) => this.doBind(state));
+  },
 
-    const templateId = config.TEMPLATE_ID;
+  /** 请求微信通知授权，回调里带回 accept / reject / ban / filter */
+  requestNotify(done) {
     wx.requestSubscribeMessage({
-      tmplIds: [templateId],
-      // 无论接受还是拒绝都不阻断绑定，只是收不到微信推送
-      complete: () => this.doBind()
+      tmplIds: [config.TEMPLATE_ID],
+      success: (res) => {
+        done((res && res[config.TEMPLATE_ID]) || '');
+      },
+      // 授权弹窗打不开时按未授权处理，不阻断绑定
+      fail: () => done('')
     });
   },
 
-  doBind() {
-    bind.acceptInvite(this.data.code).then(() => {
+  doBind(notifyState) {
+    bind.acceptInvite(this.data.code, notifyState).then(() => {
       role.setRole('caree');
-      this.setData({ state: 'done', submitting: false });
+      this.setData({ state: 'done', submitting: false, notifyState: notifyState || '' });
       wx.showToast({ title: '已开启', icon: 'success' });
     }).catch((err) => {
       this.setData({
@@ -59,6 +66,24 @@ Page({
         submitting: false,
         errorCode: (err && err.code) || '',
         errorText: (err && err.message) || '绑定失败，请让家人重新发送'
+      });
+    });
+  },
+
+  /** 未授权时重新请求，成功后写回云端 */
+  onEnableNotify() {
+    if (this.data.submitting) return;
+    this.setData({ submitting: true });
+    this.requestNotify((state) => {
+      bind.resume(state).then(() => {
+        this.setData({ submitting: false, notifyState: state || '' });
+        wx.showToast({
+          title: state === 'accept' ? '已开启微信通知' : '仍未开启，请检查微信设置',
+          icon: 'none'
+        });
+      }).catch(() => {
+        this.setData({ submitting: false });
+        wx.showToast({ title: '操作失败，请稍后重试', icon: 'none' });
       });
     });
   },

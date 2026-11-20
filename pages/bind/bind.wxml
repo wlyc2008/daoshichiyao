@@ -43,6 +43,12 @@
       <view class="intro-sub">家人已收到通知。到时间微信会提醒您，记得按「已吃药」。</view>
     </view>
     <view class="card">
+      <view wx:if="{{notifyState !== 'accept'}}" class="warn-box">
+        <view class="warn-title">{{notifyState === 'ban' ? '微信通知已被关闭' : '微信通知未开启'}}</view>
+        <view wx:if="{{notifyState === 'ban'}}" class="warn-text">请点右上角「···」→ 设置 → 通知管理，打开「接收通知」。</view>
+        <view wx:else class="warn-text">暂时收不到吃药提醒，开启后到时间微信才会提醒您。</view>
+        <button class="btn-secondary" bindtap="onEnableNotify" disabled="{{submitting}}">重新开启</button>
+      </view>
       <button class="btn-primary" bindtap="goHome">知道了</button>
     </view>
   </block>

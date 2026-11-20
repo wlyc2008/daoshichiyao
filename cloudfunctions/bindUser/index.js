@@ -87,8 +87,14 @@ async function createInvite(openid) {
   return { ok: true, code: code, expireAt: expireAt };
 }
 
+/** 只接受微信订阅授权的四种结果，其他一律视为未授权 */
+function normalizeNotifyState(value) {
+  const state = String(value || '');
+  return ['accept', 'reject', 'ban', 'filter'].indexOf(state) >= 0 ? state : '';
+}
+
 /** 长辈端：接受邀请，双向写入 linkedId */
-async function acceptInvite(openid, rawCode) {
+async function acceptInvite(openid, rawCode, rawNotifyState) {
   const code = String(rawCode || '').trim().toUpperCase();
   if (!code) return { ok: false, code: 'INVALID_CODE', msg: '邀请码无效' };
 
@@ -99,25 +105,79 @@ async function acceptInvite(openid, rawCode) {
   if (invite.caregiverOpenId === openid) {
     return { ok: false, code: 'SELF_INVITE', msg: '这是您自己的邀请，请转发给家人打开' };
   }
-  if (invite.used) return { ok: false, code: 'USED', msg: '邀请已被使用，请让家人重新发送' };
+  if (invite.used) {
+    const invalidated = invite.usedBy === 'unbind';
+    return {
+      ok: false,
+      code: 'USED',
+      msg: invalidated ? '邀请已失效，请让家人重新发送' : '邀请已被使用，请让家人重新发送'
+    };
+  }
   if (invite.expireAt < Date.now()) return { ok: false, code: 'EXPIRED', msg: '邀请已过期，请让家人重新发送' };
+
+  const notifyState = normalizeNotifyState(rawNotifyState);
+  const now = Date.now();
 
   const caree = await findUser(openid);
   if (caree) {
-    await updateUser(caree, { role: 'caree', linkedId: invite.caregiverOpenId, boundAt: Date.now() });
+    await updateUser(caree, {
+      role: 'caree',
+      linkedId: invite.caregiverOpenId,
+      boundAt: now,
+      notifyState: notifyState,
+      notifyAt: now,
+      notifyPaused: false
+    });
   } else {
-    await createUser(openid, 'caree', invite.caregiverOpenId);
+    await db.collection(USERS).add({
+      data: {
+        openid: openid,
+        role: 'caree',
+        linkedId: invite.caregiverOpenId,
+        nickname: '',
+        createdAt: now,
+        updatedAt: now,
+        boundAt: now,
+        notifyState: notifyState,
+        notifyAt: now,
+        notifyPaused: false
+      }
+    });
   }
 
   const caregiver = await findUser(invite.caregiverOpenId);
   if (caregiver) {
-    await updateUser(caregiver, { linkedId: openid, boundAt: Date.now() });
+    await updateUser(caregiver, { linkedId: openid, boundAt: now });
   }
 
   await db.collection(INVITES).doc(invite._id).update({
-    data: { used: true, usedBy: openid, usedAt: Date.now() }
+    data: { used: true, usedBy: openid, usedAt: now }
   });
 
+  return { ok: true };
+}
+
+/** 长辈端：暂停接收，保留绑定关系，之后可随时恢复 */
+async function pauseNotify(openid) {
+  const user = await findUser(openid);
+  if (!user) return { ok: false, msg: '用户不存在' };
+  if (!user.linkedId) return { ok: false, msg: '尚未绑定家人' };
+
+  await updateUser(user, { notifyPaused: true });
+  return { ok: true };
+}
+
+/** 长辈端：恢复接收，同时记录本次授权结果 */
+async function resumeNotify(openid, rawNotifyState) {
+  const user = await findUser(openid);
+  if (!user) return { ok: false, msg: '用户不存在' };
+  if (!user.linkedId) return { ok: false, msg: '尚未绑定家人，请先输入邀请码' };
+
+  await updateUser(user, {
+    notifyPaused: false,
+    notifyState: normalizeNotifyState(rawNotifyState),
+    notifyAt: Date.now()
+  });
   return { ok: true };
 }
 
@@ -127,7 +187,7 @@ async function unbindUser(openid) {
   if (!user) return { ok: true };
 
   const partnerId = user.linkedId || '';
-  await updateUser(user, { linkedId: '' });
+  await updateUser(user, { linkedId: '', notifyPaused: false });
 
   if (partnerId) {
     const partner = await findUser(partnerId);
@@ -154,7 +214,13 @@ async function getStatus(openid) {
   if (user.linkedId) {
     const other = await findUser(user.linkedId);
     partner = other
-      ? { role: other.role, nickname: other.nickname || '', boundAt: other.boundAt || 0 }
+      ? {
+        role: other.role,
+        nickname: other.nickname || '',
+        boundAt: other.boundAt || 0,
+        notifyState: other.notifyState || '',
+        notifyPaused: !!other.notifyPaused
+      }
       : null;
   }
   return { ok: true, profile: user, partner: partner };
@@ -169,7 +235,9 @@ exports.main = async (event) => {
 
   const action = event.action || 'status';
   if (action === 'create') return createInvite(OPENID);
-  if (action === 'accept') return acceptInvite(OPENID, event.code);
+  if (action === 'accept') return acceptInvite(OPENID, event.code, event.notifyState);
+  if (action === 'pause') return pauseNotify(OPENID);
+  if (action === 'resume') return resumeNotify(OPENID, event.notifyState);
   if (action === 'unbind') return unbindUser(OPENID);
   return getStatus(OPENID);
 };

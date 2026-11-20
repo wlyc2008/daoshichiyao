@@ -13,13 +13,36 @@ function createInvite() {
   });
 }
 
-function acceptInvite(code) {
-  return cloud.callFunction('bindUser', { action: 'accept', code: code }).then((res) => {
+function acceptInvite(code, notifyState) {
+  return cloud.callFunction('bindUser', {
+    action: 'accept',
+    code: code,
+    notifyState: notifyState || ''
+  }).then((res) => {
     if (!res.ok) {
       const err = new Error(res.msg || '绑定失败');
       err.code = res.code || '';
       throw err;
     }
+    return res;
+  });
+}
+
+/** 暂停接收：保留绑定，之后可恢复 */
+function pause() {
+  return cloud.callFunction('bindUser', { action: 'pause' }).then((res) => {
+    if (!res.ok) throw new Error(res.msg || '暂停失败');
+    return res;
+  });
+}
+
+/** 恢复接收：需重新授权微信通知，顺带记录本次授权结果 */
+function resume(notifyState) {
+  return cloud.callFunction('bindUser', {
+    action: 'resume',
+    notifyState: notifyState || ''
+  }).then((res) => {
+    if (!res.ok) throw new Error(res.msg || '恢复失败');
     return res;
   });
 }
@@ -38,6 +61,8 @@ function fetchStatus() {
 module.exports = {
   createInvite,
   acceptInvite,
+  pause,
+  resume,
   unbind,
   fetchStatus
 };
