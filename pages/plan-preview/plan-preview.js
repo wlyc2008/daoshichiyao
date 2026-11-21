@@ -10,6 +10,7 @@ Page({
     bound: false,
     statusText: '',
     statusWarn: false,
+    pendingSubmit: false,
     submitting: false
   },
 
@@ -36,12 +37,15 @@ Page({
     bind.fetchStatus().then((res) => {
       const profile = res.profile;
       const partner = res.partner;
+      const pending = !!(profile && profile.linkedId && partner)
+        && planSync.isSubmitPending(profile.planSign || '');
 
       if (!profile || !profile.linkedId || !partner) {
         this.setData({
           bound: false,
           statusText: '还没有绑定父母。绑定后，微信提醒会发送到父母手机。',
-          statusWarn: true
+          statusWarn: true,
+          pendingSubmit: false
         });
         return;
       }
@@ -50,7 +54,8 @@ Page({
         this.setData({
           bound: true,
           statusText: '父母已暂停接收提醒。请让父母在小程序里点「恢复接收」。',
-          statusWarn: true
+          statusWarn: true,
+          pendingSubmit: pending
         });
         return;
       }
@@ -59,7 +64,8 @@ Page({
         this.setData({
           bound: true,
           statusText: '父母还没有允许微信通知。请让父母在小程序里点「重新开启」并选择允许。',
-          statusWarn: true
+          statusWarn: true,
+          pendingSubmit: pending
         });
         return;
       }
@@ -67,7 +73,8 @@ Page({
       this.setData({
         bound: true,
         statusText: '已开启。到点提醒会发送到父母手机，父母点「已吃药」后会自动记录。',
-        statusWarn: false
+        statusWarn: false,
+        pendingSubmit: pending
       });
     }).catch(() => {
       this.setData({
@@ -109,6 +116,8 @@ Page({
         });
         return;
       }
+      this.setData({ pendingSubmit: false });
+      this.refresh();
       wx.showModal({
         title: '提醒计划已提交',
         content: ready
@@ -116,15 +125,6 @@ Page({
           : '计划已同步到云端，但父母还没有允许微信通知。请让父母在小程序里点「重新开启」，到点才能收到提醒。',
         showCancel: false
       });
-    });
-  },
-
-  /** 把开启步骤复制给子女，便于直接发给父母 */
-  copyGuide() {
-    const text = '打开「到时吃药」小程序 → 首页点「重新开启」→ 选择「允许」接收微信通知。开启后到点会在微信收到吃药提醒，吃完点「已吃药」即可。';
-    wx.setClipboardData({
-      data: text,
-      success: () => wx.showToast({ title: '步骤已复制，可粘贴发给父母', icon: 'none' })
     });
   },
 

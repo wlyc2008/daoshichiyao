@@ -220,8 +220,6 @@
 {
   icsExportedAt: "",       // 最近一次日历文件发送时间
   icsSignature: "",        // 日历计划指纹
-  planSignature: "",       // 旧 V1 计划指纹（仅用于迁移清理）
-  medPlanSignature: "",    // 长辈计划指纹
   boundTargetId: "",       // 当前绑定的长辈 openid
   v1Cleared: false         // 是否已清理旧的 V1 提醒计划
 }
@@ -675,8 +673,9 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 
 **同步与推送**
 
-- 本地 `utils/planSync.js` 同时维护两个指纹：V1 `planSignature`（`reminder_plans`）与 `medPlanSignature`（`med_plans`），任一变化才调云函数
+- 计划指纹只保存一份在云端 `users.planSign`：`utils/planSync.js` 本地实时计算指纹，与云端不一致才调 `syncMedPlans`；同步成功后由云函数写回该指纹
 - 触发时机：药品保存 / 补货 / 停用 / 删除后立即同步；绑定关系变化时强制重写（`syncIfChanged(true)`）刷新 `targetId`
+- 「微信提醒」页的“待重新提交/重新提交”提示也直接对比这个云端指纹
 - 新增云函数 `syncMedPlans`：按 `ownerId + medId` upsert，本地删除的药品同步删除云端计划；每次同步刷新 `targetId`
 - `sendDue` 保留 V1 `reminder_plans` 逻辑，并行新增 `med_plans` 推送：
   - 以 `ownerId` 当前 `linkedId` 解析 targetId，解绑/换绑后立即停止
@@ -852,8 +851,8 @@ cli upload --project "c:\Users\Administrator\Documents\Trae-CN\wx" -v 0.1.0 -d "
 
 - 「设置日历提醒」的日历文件不再用于子女手机，改为通过 `wx.shareFileMessage` 转发到父母微信
 - 页面步骤与发送成功提示改为「父母点开文件 → 用其他应用打开 → 日历」
-- 新增「复制导入步骤发给父母」，便于子女直接粘贴到聊天
-- 「取消日历提醒」说明改为在父母手机上删除「到时吃药」日历，并注明小程序无法远程删除
+- 导入与删除合并为一条说明，**发送成功后自动复制到剪贴板**，粘贴到同一聊天即随文件发给父母
+- 「取消日历提醒」不再单独设入口与页面，删除「到时吃药」日历的清空方式写进同一条说明
 - 「调整三餐时间 / 调整起居时间」改名为「调整父母三餐时间 / 调整父母起居时间」
 - 移除不再使用的 `ics.copyToClipboard`，日历经剪贴板导入的旧路径下线
 

@@ -54,6 +54,7 @@ Page({
         planSync.syncIfChanged();
         this.refresh();
         wx.showToast({ title: '已补充', icon: 'success' });
+        setTimeout(() => planSync.guideResubmit(), 300);
       }
     });
   },
@@ -72,7 +73,7 @@ Page({
         storage.toggleMed(id);
         planSync.syncIfChanged();
         this.refresh();
-        wx.showToast({ title: stopping ? '已停用' : '已恢复', icon: 'none' });
+        setTimeout(() => planSync.guideResubmit(), 300);
       }
     });
   },
@@ -87,7 +88,7 @@ Page({
         storage.deleteMed(id);
         planSync.syncIfChanged();
         this.refresh();
-        wx.showToast({ title: '已删除', icon: 'none' });
+        setTimeout(() => planSync.guideResubmit(), 300);
       }
     });
   }

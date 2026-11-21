@@ -8,7 +8,6 @@
     <view class="entry" hover-class="tap-hover" data-url="/pages/med-manage/med-manage" bindtap="goPage">药品管理</view>
     <view class="entry" hover-class="tap-hover" data-url="/pages/plan-preview/plan-preview" bindtap="goPage">微信提醒</view>
     <view class="entry" hover-class="tap-hover" data-url="/pages/calendar-alert/calendar-alert" bindtap="goPage">设置日历提醒</view>
-    <view class="entry" hover-class="tap-hover" bindtap="cancelCalendar">取消日历提醒</view>
   </view>
 
   <view class="group-title">健康档案</view>

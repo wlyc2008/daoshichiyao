@@ -13,8 +13,10 @@
     <view wx:if="{{exportedText}}" class="notice {{exportedStale ? 'notice-warn' : ''}}">{{exportedText}}</view>
 
     <button class="btn-primary" bindtap="exportCalendar">发送日历文件给父母</button>
-    <button class="btn-secondary" bindtap="copyImportSteps">复制导入步骤发给父母</button>
 
-    <view class="cancel-link" hover-class="tap-hover" bindtap="goCancel">父母如何取消日历提醒</view>
+    <view wx:if="{{isDevtools}}" class="dev-simulate">
+      <view class="dev-simulate-text">开发者工具模拟发送</view>
+      <switch checked="{{simulateSend}}" color="#2E7D32" bindchange="onSimulateChange" />
+    </view>
   </view>
 </view>

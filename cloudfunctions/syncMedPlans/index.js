@@ -120,5 +120,17 @@ exports.main = async (event) => {
 
   await runBatches(upserts.concat(removes));
 
-  return { ok: true, count: incoming.length, removed: removes.length, targetId: targetId };
+  // 指纹只保存在云端：同步成功后写入 users.planSign，供两端判断计划是否最新
+  const signature = typeof event.signature === 'string' ? event.signature.slice(0, 4000) : '';
+  if (signature) {
+    try {
+      await db.collection(USERS).where({ openid: OPENID }).update({
+        data: { planSign: signature, planSignAt: now }
+      });
+    } catch (err) {
+      // users 尚未建立时忽略，下一次同步会重试
+    }
+  }
+
+  return { ok: true, count: incoming.length, removed: removes.length, targetId: targetId, planSign: signature };
 };

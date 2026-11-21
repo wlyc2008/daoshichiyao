@@ -397,7 +397,7 @@ Page({
       // 保存即上云，避免用户停留在设置页时提醒计划还是旧数据
       planSync.syncIfChanged();
       wx.showToast({ title: this.data.isEdit ? '已保存' : '已添加', icon: 'success' });
-      setTimeout(() => wx.navigateBack(), 600);
+      setTimeout(() => planSync.guideResubmit(), 500);
     } catch (err) {
       this.setData({ saving: false });
       wx.showToast({ title: err.message || '保存失败', icon: 'none' });

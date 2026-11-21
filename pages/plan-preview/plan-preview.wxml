@@ -13,10 +13,10 @@
     <view class="section-title">微信提醒</view>
     <view class="hint">提交后由云端按计划时间推送，只发送到父母手机。请先绑定父母，并让父母允许微信通知。</view>
 
+    <view wx:if="{{pendingSubmit}}" class="notice notice-warn">用药计划或库存有更新，请重新提交，确保到点按最新计划提醒父母。</view>
+
     <view class="notice {{statusWarn ? 'notice-warn' : ''}}">{{statusText}}</view>
 
-    <button class="btn-primary" bindtap="onOpenReminder" disabled="{{submitting}}">{{submitting ? '正在提交…' : '开启微信提醒'}}</button>
-    <button class="btn-secondary" bindtap="copyGuide">复制开启步骤发给父母</button>
-    <button class="btn-secondary" bindtap="goFamily">去亲情提醒查看绑定</button>
+    <button class="btn-primary" bindtap="onOpenReminder" disabled="{{submitting}}">{{submitting ? '正在提交…' : (pendingSubmit ? '重新提交微信提醒' : '开启微信提醒')}}</button>
   </view>
 </view>

@@ -255,7 +255,6 @@ Page({
   initApp() {
     this.refresh();
     this.startTimer();
-    this.checkDue();
     // 药品增删改后即使没进过提醒页，也把变化同步到云端
     planSync.syncIfChanged();
     this.loadBindStatus();
@@ -275,6 +274,7 @@ Page({
           partnerPaused: false
         }, emptyToday()));
         this.syncTarget('');
+        if (this.data.userRole !== 'caregiver') this.stopTimer();
         return;
       }
 
@@ -284,6 +284,7 @@ Page({
           notifyState: profile.notifyState || '',
           notifyPaused: !!profile.notifyPaused
         });
+        this.startTimer();
         this.loadToday();
         return;
       }
@@ -312,6 +313,7 @@ Page({
       this.setData(patch);
       this.applyCareChart(patch);
       this.maybeShowNotifyModal(patch);
+      this.checkCareDue();
     }).catch(() => {
       this.setData({ careLoaded: true });
     });
@@ -354,6 +356,9 @@ Page({
       + '\n计划时间 ' + pending.time;
     const missed = pendingItems.some((item) => item.missed);
 
+    // 消息弹窗已覆盖该时刻，避免遮罩重复弹出
+    this.suppressCareDueKey = pending.date + '|' + pending.time;
+
     wx.showModal({
       title: missed ? '漏服提醒' : '该吃药了',
       content: content,
@@ -363,6 +368,57 @@ Page({
         if (res.confirm) this.confirmNotify(pendingItems);
       }
     });
+  },
+
+  /** 长辈端：按云端今日计划到点弹出确认遮罩（子女端不参与） */
+  checkCareDue() {
+    if (this.data.userRole !== 'caree') return;
+    if (!this.data.bound || this.data.notifyPaused) return;
+    if (this.data.due) return;
+
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const dayKey = localDayKey();
+    const dueItems = (this.data.careItems || []).filter((item) => {
+      if (item.taken) return false;
+      if (this.suppressCareDueKey === dayKey + '|' + item.time) return false;
+      const diff = nowMinutes - date.minutesOfDay(item.time);
+      if (diff < 0 || diff >= reminder.DUE_WINDOW_MINUTES) return false;
+      return !this.hasCareeSnooze(item);
+    });
+    if (!dueItems.length) return;
+
+    const first = dueItems[0];
+    this.careeDueItems = dueItems;
+    this.setData({
+      due: {
+        name: dueItems.map((item) => item.medName).join('、'),
+        dose: Number(first.dose) || 1,
+        unit: first.unit || '片',
+        doseText: dueItems.length > 1
+          ? dueItems.map((item) => item.doseText).join(' + ')
+          : '',
+        timeText: friendlyTime(first.time),
+        time: first.time
+      }
+    });
+
+    try {
+      wx.enableAlertBeforeUnload({ message: '请先确认本次服药' });
+    } catch (err) {
+      // 低版本基础库不支持时忽略
+    }
+  },
+
+  /** 长辈端稍后提醒：按 planId + 时刻记录本地暂停，到点后再次弹出 */
+  hasCareeSnooze(item) {
+    const map = this.careeSnooze || {};
+    const key = item.planId + '|' + item.time;
+    const until = map[key];
+    if (!until) return false;
+    if (until > Date.now()) return true;
+    delete map[key];
+    return false;
   },
 
   /** 消息弹窗确认：先续订授权，再逐条记录，云端自动判断是否补吃 */
@@ -487,6 +543,7 @@ Page({
         notifyPaused: false,
         notifyState: notifyState || ''
       });
+      this.startTimer();
       this.loadToday();
       wx.showToast({
         title: notifyState === 'accept' ? '已开启家人的提醒' : '已绑定，但通知未开启',
@@ -577,9 +634,15 @@ Page({
   startTimer() {
     this.stopTimer();
     this.timer = setInterval(() => {
-      this.checkDue();
-      // 子女端每 2 分钟同步一次长辈的服药记录，及时更新 24 小时图
       this.careTick = (this.careTick || 0) + 1;
+      // 长辈端：到点弹确认遮罩，并每 2 分钟同步云端状态；子女端只同步不弹窗
+      if (this.data.userRole === 'caree') {
+        this.checkCareDue();
+        if (this.data.bound && !this.data.notifyPaused && this.careTick % 4 === 0) {
+          this.loadToday();
+        }
+        return;
+      }
       if (this.data.userRole === 'caregiver' && this.data.bound && this.careTick % 4 === 0) {
         this.loadToday();
       }
@@ -732,46 +795,27 @@ Page({
     });
   },
 
-  checkDue() {
-    if (this.data.due) return;
-    const due = reminder.getDueDose(new Date());
-    if (!due) return;
-
-    const planned = date.parseKey(due.plannedTime);
-    this.setData({
-      due: {
-        medId: due.med.id,
-        name: due.med.name,
-        dose: due.med.dose,
-        unit: due.med.unit || '片',
-        plannedTime: due.plannedTime,
-        timeText: planned ? friendlyTime(date.formatTime(planned)) : ''
-      }
-    });
-
-    try {
-      wx.enableAlertBeforeUnload({ message: '请先确认本次服药' });
-    } catch (err) {
-      // 低版本基础库不支持时忽略
-    }
-  },
-
+  /** 遮罩确认：长辈端一次性记录该时刻的全部药品 */
   onConfirmDose() {
-    const due = this.data.due;
-    if (!due) return;
-    const med = storage.getMedById(due.medId);
-    reminder.confirmDose(med, due.plannedTime);
+    const items = this.careeDueItems || [];
+    this.careeDueItems = null;
     this.dismissDue();
-    this.refresh();
-    wx.showToast({ title: '已记录', icon: 'success' });
+    if (!items.length) return;
+    this.confirmNotify(items);
   },
 
+  /** 遮罩稍后提醒：10 分钟内不再弹出，到点后重新提醒 */
   onSnoozeDose() {
+    const items = this.careeDueItems || [];
     const due = this.data.due;
     if (!due) return;
-    reminder.markSnooze(due.medId, due.plannedTime, 10);
+    const until = Date.now() + reminder.SNOOZE_MINUTES * 60000;
+    this.careeSnooze = this.careeSnooze || {};
+    items.forEach((item) => {
+      this.careeSnooze[item.planId + '|' + item.time] = until;
+    });
+    this.careeDueItems = null;
     this.dismissDue();
-    this.refresh();
     wx.showToast({ title: '10 分钟后再提醒', icon: 'none' });
   },
 
@@ -786,6 +830,11 @@ Page({
 
   goSettings() {
     wx.navigateTo({ url: '/pages/settings/settings' });
+  },
+
+  /** 用药时间变更后，直接进入日历提醒页重新生成并发送 */
+  goCalendarAlert() {
+    wx.navigateTo({ url: '/pages/calendar-alert/calendar-alert' });
   },
 
   /** 隐私说明：未选身份时也能查看 */

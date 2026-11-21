@@ -10,10 +10,6 @@ Page({
     version: config.VERSION
   },
 
-  cancelCalendar() {
-    wx.navigateTo({ url: '/pages/cancel-calendar/cancel-calendar' });
-  },
-
   exportBackup() {
     const payload = {
       version: 1,

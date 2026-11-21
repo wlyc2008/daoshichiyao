@@ -1,4 +1,5 @@
 const storage = require('../../utils/storage');
+const planSync = require('../../utils/planSync');
 
 Page({
   data: {
@@ -20,7 +21,9 @@ Page({
 
   save() {
     storage.setRoutineTimes(this.data);
+    // 起居时间会改变部分药品的提醒时刻，保存后立即推送到父母端
+    planSync.syncIfChanged();
     wx.showToast({ title: '已保存', icon: 'success' });
-    setTimeout(() => wx.navigateBack(), 500);
+    setTimeout(() => planSync.guideResubmit(), 500);
   }
 });

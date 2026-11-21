@@ -3,8 +3,8 @@ const reminder = require('../../utils/reminder');
 const ics = require('../../utils/ics');
 const date = require('../../utils/date');
 
-// 复制给子女，方便直接粘贴到和父母的聊天里
-const IMPORT_STEPS = '在微信里点开「用药提醒.ics」→ 右上角「···」→「用其他应用打开」→「日历」，导入到名为「到时吃药」的日历即可。以后不再需要时，删除这个日历就能一次清空提醒。';
+// 导入与删除合并为一条说明，发送文件后自动复制，粘贴到同一聊天即可发给父母
+const CALENDAR_GUIDE = '请父母在微信里点开「用药提醒.ics」→ 右上角「···」→「用其他应用打开」→「日历」，导入到名为「到时吃药」的日历。以后不再需要时，删除这个日历即可一次清空全部提醒。';
 
 /** 转发文件只在手机微信可用，电脑微信和开发者工具会直接失败 */
 function isPcRuntime() {
@@ -16,15 +16,27 @@ function isPcRuntime() {
   }
 }
 
+/** 仅微信开发者工具：用于模拟发送成功，不参与真机逻辑 */
+function isDevtools() {
+  try {
+    return wx.getSystemInfoSync().platform === 'devtools';
+  } catch (err) {
+    return false;
+  }
+}
+
 Page({
   data: {
     items: [],
     hasMeds: false,
     exportedText: '',
-    exportedStale: false
+    exportedStale: false,
+    isDevtools: false,
+    simulateSend: false
   },
 
   onShow() {
+    this.setData({ isDevtools: isDevtools() });
     this.refresh();
   },
 
@@ -86,6 +98,10 @@ Page({
       return;
     }
     if (isPcRuntime()) {
+      if (this.data.isDevtools && this.data.simulateSend) {
+        this.applyExported(ics.buildSignature(meds, storage.getMealTimes()), true);
+        return;
+      }
       wx.showModal({
         title: '请用手机操作',
         content: '转发日历文件只支持手机微信，电脑微信和开发者工具里无法发送。请用手机打开小程序再试。',
@@ -122,17 +138,9 @@ Page({
       filePath: filePath,
       fileName: '用药提醒.ics',
       success: () => {
-        storage.setSettings({
-          icsExportedAt: date.toKey(new Date()),
-          icsSignature: signature || ''
-        });
-        this.refresh();
-        wx.showModal({
-          title: '已发送日历文件',
-          content: '请提醒父母在微信里点开「用药提醒.ics」，选择「用其他应用打开」→「日历」导入。建议导入到「到时吃药」专用日历，以后删除该日历即可一次清空。',
-          showCancel: false,
-          confirmText: '知道了'
-        });
+        // 说明紧跟日历文件发到同一聊天：微信只能单独转文件，这里自动复制说明供粘贴
+        wx.setClipboardData({ data: CALENDAR_GUIDE });
+        this.applyExported(signature, false);
       },
       fail: (err) => {
         const msg = (err && err.errMsg) || '';
@@ -153,12 +161,26 @@ Page({
     });
   },
 
-  /** 把导入步骤复制给子女，便于直接发给父母 */
-  copyImportSteps() {
-    wx.setClipboardData({
-      data: IMPORT_STEPS,
-      success: () => wx.showToast({ title: '步骤已复制，可粘贴发给父母', icon: 'none' })
+  /** 记录导出状态：真机发送成功与开发者工具模拟共用 */
+  applyExported(signature, simulated) {
+    storage.setSettings({
+      icsExportedAt: date.toKey(new Date()),
+      icsSignature: signature || ''
     });
+    this.refresh();
+    wx.showModal({
+      title: simulated ? '已模拟发送' : '已发送日历文件',
+      content: simulated
+        ? '仅在开发者工具中标记为已发送，用于验证首页状态与后续流程；真机才会实际转发文件。'
+        : '导入与删除说明已复制到剪贴板，请粘贴到同一聊天发给父母。父母按说明导入「到时吃药」日历，以后删除该日历即可清空提醒。',
+      showCancel: false,
+      confirmText: '知道了'
+    });
+  },
+
+  /** 开发者工具模拟开关 */
+  onSimulateChange(event) {
+    this.setData({ simulateSend: !!event.detail.value });
   },
 
   goMealTimes() {
@@ -167,9 +189,5 @@ Page({
 
   goRoutineTimes() {
     wx.navigateTo({ url: '/pages/routine-times/routine-times' });
-  },
-
-  goCancel() {
-    wx.navigateTo({ url: '/pages/cancel-calendar/cancel-calendar' });
   }
 });

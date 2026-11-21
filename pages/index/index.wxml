@@ -108,7 +108,7 @@
       </view>
     </view>
 
-    <view wx:else class="card">
+    <view wx:if="{{!bound}}" class="card">
       <view class="section-title">等待家人的提醒</view>
       <view class="empty-text">请让子女在小程序里点击「发送给父母」，把提醒卡片转发到您的微信。</view>
       <view class="empty-text wait-hint">卡片没收到也不要紧，直接输入子女告诉您的 6 位邀请码，同样可以开启。</view>
@@ -151,6 +151,12 @@
     <view class="bind-bar" hover-class="tap-hover" bindtap="goSettings">
       <view class="bind-bar-text {{bound ? '' : 'bind-bar-idle'}}">{{bound ? bindStatusText : '尚未绑定长辈'}}</view>
       <view class="bind-bar-action">{{bound ? '查看' : '去设置'}}</view>
+    </view>
+
+    <!-- 日历提醒：与绑定状态同一行样式，展示当前设置状态 -->
+    <view wx:if="{{hasMeds}}" class="bind-bar" hover-class="tap-hover" bindtap="goCalendarAlert">
+      <view class="bind-bar-text">{{icsOutdated ? '有更新需设置' : (icsExported ? '已设日历提醒' : '未设日历提醒')}}</view>
+      <view class="bind-bar-action">详情</view>
     </view>
 
     <!-- 长辈今日完成情况已移除，保留用药清单与本地提醒 -->
@@ -222,11 +228,6 @@
       </block>
     </view>
 
-    <view wx:if="{{hasMeds && (!icsExported || icsOutdated)}}" class="card banner">
-      <view class="banner-text">{{icsOutdated ? '用药时间已变更，父母日历里的提醒还是旧时间' : '还没把日历文件发给父母，关掉微信后可能收不到提醒'}}</view>
-      <view class="link" hover-class="tap-hover" bindtap="goSettings">{{icsOutdated ? '重新设置' : '去设置'}}</view>
-    </view>
-
     <view class="privacy">照片与用药记录只保存在本机；微信提醒会同步到云端，仅用于发送提醒</view>
   </block>
 
@@ -235,6 +236,7 @@
     visible="{{due ? true : false}}"
     name="{{due.name}}"
     dose="{{due.dose}}"
+    doseText="{{due.doseText}}"
     unit="{{due.unit}}"
     timeText="{{due.timeText}}"
     bind:confirm="onConfirmDose"

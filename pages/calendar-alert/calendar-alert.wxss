@@ -18,10 +18,17 @@
   text-decoration: underline;
 }
 
-.cancel-link {
+/* 仅开发者工具显示：模拟发送开关 */
+.dev-simulate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-top: 24rpx;
-  text-align: center;
+  padding-top: 24rpx;
+  border-top: 2rpx solid var(--color-border);
+}
+
+.dev-simulate-text {
   font-size: var(--font-sm);
-  color: var(--color-primary);
-  text-decoration: underline;
+  color: var(--color-text-weak);
 }

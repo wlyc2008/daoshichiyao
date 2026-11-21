@@ -5,7 +5,6 @@
     "pages/med-edit/med-edit",
     "pages/meal-times/meal-times",
     "pages/routine-times/routine-times",
-    "pages/cancel-calendar/cancel-calendar",
     "pages/calendar-alert/calendar-alert",
     "pages/plan-preview/plan-preview",
     "pages/doc-archive/doc-archive",
